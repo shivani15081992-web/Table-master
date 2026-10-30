@@ -3,14 +3,119 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Reports & Financial Analytics — TableMaster Pro</title>
+<title>Analytics & Profit Dashboard — TableMaster Pro</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1a1a1a">
+<meta name="theme-color" content="#0f172a">
 <link rel="stylesheet" href="shared.css">
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
 <script src="shared.js"></script>
+<style>
+/* Modern Executive Analytics Styling */
+.analytics-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #111827 100%);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  color: #fff;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+.kpi-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  backdrop-filter: blur(8px);
+}
+.kpi-card.sales { border-left: 4px solid #38bdf8; }
+.kpi-card.expense { border-left: 4px solid #f87171; }
+.kpi-card .kpi-label { font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 0.5px; }
+.kpi-card .kpi-val { font-size: 22px; font-weight: 800; margin-top: 4px; }
+.kpi-card.sales .kpi-val { color: #38bdf8; }
+.kpi-card.expense .kpi-val { color: #f87171; }
+
+.profit-meter {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.profit-badge-pill {
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.pill-profit { background: #065f46; color: #6ee7b7; border: 1px solid #059669; }
+.pill-loss { background: #7f1d1d; color: #fca5a5; border: 1px solid #b91c1c; }
+
+/* Filter Tabs */
+.filter-capsule-bar {
+  display: flex;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 12px;
+}
+.filter-capsule-bar::-webkit-scrollbar { display: none; }
+.capsule-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.capsule-btn.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 2px 6px rgba(15,23,42,0.08);
+}
+
+/* Custom Date Range Picker Box */
+.custom-range-card {
+  background: #fff;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: none;
+}
+.custom-range-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: flex-end;
+}
+@media (max-width: 500px) {
+  .custom-range-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .custom-range-grid button {
+    grid-column: span 2;
+  }
+}
+</style>
 </head>
 <body>
   <!-- TOPBAR -->
@@ -18,7 +123,7 @@
     <div class="brand-box">
       <div class="brand-icon" id="header-logo-container"></div>
       <div>
-        <span id="txt-cafe-name">Profit & Reports</span>
+        <span id="txt-cafe-name">Executive Analytics</span>
         <div id="active-user-role" class="role-badge">REPORTS</div>
       </div>
     </div>
@@ -31,64 +136,93 @@
     </div>
   </header>
 
-  <!-- MAIN ANALYTICS WRAPPER -->
+  <!-- MAIN WRAPPER -->
   <main class="main-wrapper">
+    
+    <!-- TIME RANGE TABS -->
+    <div class="filter-capsule-bar">
+      <button class="capsule-btn active" id="btn-f-today" onclick="setPeriodFilter('today')">Today</button>
+      <button class="capsule-btn" id="btn-f-yesterday" onclick="setPeriodFilter('yesterday')">Yesterday</button>
+      <button class="capsule-btn" id="btn-f-week" onclick="setPeriodFilter('week')">This Week</button>
+      <button class="capsule-btn" id="btn-f-month" onclick="setPeriodFilter('month')">This Month</button>
+      <button class="capsule-btn" id="btn-f-all" onclick="setPeriodFilter('all')">All Time</button>
+      <button class="capsule-btn" id="btn-f-custom" onclick="toggleCustomRange()">📅 Custom Date</button>
+    </div>
+
+    <!-- CUSTOM DATE RANGE SELECTOR -->
+    <div class="custom-range-card" id="box-custom-range">
+      <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#0f172a;">Select Specific Date Duration</div>
+      <div class="custom-range-grid">
+        <div>
+          <label style="font-size:10px;">FROM DATE</label>
+          <input type="date" id="cr-start" style="margin-bottom:0;padding:6px 10px;font-size:12px;">
+        </div>
+        <div>
+          <label style="font-size:10px;">TO DATE</label>
+          <input type="date" id="cr-end" style="margin-bottom:0;padding:6px 10px;font-size:12px;">
+        </div>
+        <button class="btn-primary" style="padding:8px 12px;font-size:12px;height:36px;" onclick="applyCustomDateFilter()">Apply Filter</button>
+      </div>
+    </div>
+
+    <!-- MODERN ANALYTICS HERO CARD -->
+    <div class="analytics-hero">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;" id="txt-active-period">Showing Analytics for: Today</div>
+          <div style="font-size:13px;color:#cbd5e1;margin-top:2px;" id="txt-date-subspan">Live Financial Summary</div>
+        </div>
+        <button class="btn-sm-outline" style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2);" onclick="exportCSVReport()">📥 Export CSV</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card sales">
+          <div class="kpi-label">Completed Sales</div>
+          <div class="kpi-val" id="rep-total-sales">₹ 0.00</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px;"><span id="rep-order-count">0</span> Orders Settled</div>
+        </div>
+        <div class="kpi-card expense">
+          <div class="kpi-label">Operating Expenses</div>
+          <div class="kpi-val" id="rep-total-expense">₹ 0.00</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px;"><span id="rep-expense-count">0</span> Entries Recorded</div>
+        </div>
+      </div>
+
+      <div class="profit-meter">
+        <div>
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;">NET REVENUE BALANCE</div>
+          <div style="font-size:24px;font-weight:800;color:#fff;margin-top:2px;" id="rep-net-val">₹ 0.00</div>
+        </div>
+        <div class="profit-badge-pill pill-profit" id="rep-profit-pill">NET PROFIT</div>
+      </div>
+    </div>
+
+    <!-- TOP PERFORMING DISHES -->
     <div class="tm-card">
       <div class="tm-card-title">
-        <span>Business Performance Analytics</span>
-        <button class="btn-sm-outline" onclick="exportCSVReport()">📥 Export CSV</button>
+        <span>🏆 Most Ordered Food Items</span>
       </div>
+      <div id="top-selling-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
 
-      <!-- FILTER TABS -->
-      <div class="filter-bar" style="display:flex;gap:6px;margin-bottom:12px;">
-        <button class="btn-sm-outline active" id="rf-today" onclick="setReportFilter('today')">Today</button>
-        <button class="btn-sm-outline" id="rf-week" onclick="setReportFilter('week')">This Week</button>
-        <button class="btn-sm-outline" id="rf-month" onclick="setReportFilter('month')">This Month</button>
-        <button class="btn-sm-outline" id="rf-all" onclick="setReportFilter('all')">All Time</button>
+    <!-- DAILY STATEMENT TABLE -->
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>📅 Daily Transaction Ledger</span>
       </div>
-
-      <!-- SALES & EXPENSES KPI -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;margin-top:10px;">
-        <div style="background:#ecfdf5;border:1px solid #a7f3d0;padding:12px;border-radius:10px;">
-          <div style="font-size:10.5px;color:#047857;font-weight:700;text-transform:uppercase;">TOTAL SALES</div>
-          <div style="font-size:22px;font-weight:800;color:#065f46;margin-top:2px;" id="rep-sales">₹ 0.00</div>
-        </div>
-        <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:10px;">
-          <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;">TOTAL EXPENSES</div>
-          <div style="font-size:22px;font-weight:800;color:#991b1b;margin-top:2px;" id="rep-expense">₹ 0.00</div>
-        </div>
-      </div>
-
-      <!-- NET PROFIT BANNER -->
-      <div class="profit-banner profit" id="profit-box">
-        <div>
-          <div class="label" id="rep-profit-label">NET PROFIT</div>
-          <div class="val" id="rep-net-profit">₹ 0.00</div>
-        </div>
-      </div>
-
-      <!-- TOP SELLING DISHES -->
-      <div style="margin-top:18px;margin-bottom:16px;">
-        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;">🏆 Top Selling Items</h4>
-        <div id="top-selling-container"></div>
-      </div>
-
-      <!-- DAILY STATEMENT BREAKDOWN -->
-      <div style="margin-top:18px;">
-        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;">📅 Daily Breakdown</h4>
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Sales</th>
-                <th>Expense</th>
-                <th>Net</th>
-              </tr>
-            </thead>
-            <tbody id="daily-breakdown-body"></tbody>
-          </table>
-        </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Orders</th>
+              <th>Gross Sales</th>
+              <th>Expenses</th>
+              <th>Net Profit</th>
+            </tr>
+          </thead>
+          <tbody id="daily-ledger-body"></tbody>
+        </table>
       </div>
     </div>
 
@@ -124,24 +258,66 @@
   </nav>
 
 <script>
-let activeReportFilter = 'today';
+let currentPeriod = 'today';
+let customStartDate = '';
+let customEndDate = '';
 
 function handleLogout() {
-  if (confirm("Log out from Reports Terminal?")) {
+  if (confirm("Log out from Reports?")) {
     sessionStorage.removeItem('tmpro_role_mode');
     sessionStorage.removeItem('tmpro_cafe_id');
-    auth.signOut().then(() => {
-      window.location.href = 'index.html';
-    });
+    auth.signOut().then(() => { window.location.href = 'index.html'; });
   }
 }
 
-function setReportFilter(filter) {
-  activeReportFilter = filter;
-  document.getElementById('rf-today').classList.toggle('active', filter === 'today');
-  document.getElementById('rf-week').classList.toggle('active', filter === 'week');
-  document.getElementById('rf-month').classList.toggle('active', filter === 'month');
-  document.getElementById('rf-all').classList.toggle('active', filter === 'all');
+function formatDateISO(d) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(d);
+}
+
+function setPeriodFilter(period) {
+  currentPeriod = period;
+  document.getElementById('box-custom-range').style.display = 'none';
+
+  const buttons = document.querySelectorAll('.capsule-btn');
+  buttons.forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('btn-f-' + period);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  renderReports();
+}
+
+function toggleCustomRange() {
+  const box = document.getElementById('box-custom-range');
+  const isHidden = (box.style.display === 'none' || box.style.display === '');
+  box.style.display = isHidden ? 'block' : 'none';
+
+  const buttons = document.querySelectorAll('.capsule-btn');
+  buttons.forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-f-custom').classList.add('active');
+
+  if (isHidden) {
+    const today = window.todayStr();
+    document.getElementById('cr-start').value = customStartDate || today;
+    document.getElementById('cr-end').value = customEndDate || today;
+  }
+}
+
+function applyCustomDateFilter() {
+  const s = document.getElementById('cr-start').value;
+  const e = document.getElementById('cr-end').value;
+  if (!s || !e) {
+    alert("Please select both start and end dates!");
+    return;
+  }
+  if (s > e) {
+    alert("Start date cannot be after end date!");
+    return;
+  }
+  customStartDate = s;
+  customEndDate = e;
+  currentPeriod = 'custom';
   renderReports();
 }
 
@@ -150,41 +326,70 @@ function renderReports() {
   updateHeaderBrand(data);
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  const today = window.todayStr();
+  const todayStr = window.todayStr();
   let orders = (data.orders || []).filter(o => o.status === 'completed');
   let expenses = data.expenses || [];
 
-  if (activeReportFilter === 'today') {
-    orders = orders.filter(o => o.date === today);
-    expenses = expenses.filter(e => e.date === today);
-  } else if (activeReportFilter === 'week') {
-    const d = new Date(); 
+  let labelText = "Today";
+  let subText = `Date: ${todayStr}`;
+
+  if (currentPeriod === 'today') {
+    orders = orders.filter(o => o.date === todayStr);
+    expenses = expenses.filter(e => e.date === todayStr);
+    labelText = "Today";
+    subText = `Date: ${todayStr}`;
+  } else if (currentPeriod === 'yesterday') {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yDay = formatDateISO(d);
+    orders = orders.filter(o => o.date === yDay);
+    expenses = expenses.filter(e => e.date === yDay);
+    labelText = "Yesterday";
+    subText = `Date: ${yDay}`;
+  } else if (currentPeriod === 'week') {
+    const d = new Date();
     d.setDate(d.getDate() - 7);
-    const weekAgo = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-    orders = orders.filter(o => (o.date || today) >= weekAgo);
-    expenses = expenses.filter(e => (e.date || today) >= weekAgo);
-  } else if (activeReportFilter === 'month') {
-    const monthPrefix = today.slice(0, 7);
-    orders = orders.filter(o => (o.date || today).startsWith(monthPrefix));
-    expenses = expenses.filter(e => (e.date || today).startsWith(monthPrefix));
+    const weekAgo = formatDateISO(d);
+    orders = orders.filter(o => (o.date || todayStr) >= weekAgo && (o.date || todayStr) <= todayStr);
+    expenses = expenses.filter(e => (e.date || todayStr) >= weekAgo && (e.date || todayStr) <= todayStr);
+    labelText = "Last 7 Days (This Week)";
+    subText = `${weekAgo} to ${todayStr}`;
+  } else if (currentPeriod === 'month') {
+    const monthPrefix = todayStr.slice(0, 7);
+    orders = orders.filter(o => (o.date || todayStr).startsWith(monthPrefix));
+    expenses = expenses.filter(e => (e.date || todayStr).startsWith(monthPrefix));
+    labelText = "This Month";
+    subText = `Month: ${monthPrefix}`;
+  } else if (currentPeriod === 'all') {
+    labelText = "All Time Record";
+    subText = "Lifetime Performance Overview";
+  } else if (currentPeriod === 'custom') {
+    orders = orders.filter(o => (o.date || todayStr) >= customStartDate && (o.date || todayStr) <= customEndDate);
+    expenses = expenses.filter(e => (e.date || todayStr) >= customStartDate && (e.date || todayStr) <= customEndDate);
+    labelText = "Custom Date Range";
+    subText = `${customStartDate} to ${customEndDate}`;
   }
 
-  const totalSales = orders.reduce((s, o) => s + (o.total || 0), 0);
-  const totalExp = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  document.getElementById('txt-active-period').innerText = `Showing Analytics for: ${labelText}`;
+  document.getElementById('txt-date-subspan').innerText = subText;
+
+  const totalSales = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+  const totalExp = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const netProfit = totalSales - totalExp;
 
-  document.getElementById('rep-sales').innerText = `₹ ${totalSales.toFixed(2)}`;
-  document.getElementById('rep-expense').innerText = `₹ ${totalExp.toFixed(2)}`;
-  document.getElementById('rep-net-profit').innerText = `₹ ${Math.abs(netProfit).toFixed(2)}`;
-  
-  const pBox = document.getElementById('profit-box');
-  const pLabel = document.getElementById('rep-profit-label');
+  document.getElementById('rep-total-sales').innerText = `₹ ${totalSales.toFixed(2)}`;
+  document.getElementById('rep-order-count').innerText = orders.length;
+  document.getElementById('rep-total-expense').innerText = `₹ ${totalExp.toFixed(2)}`;
+  document.getElementById('rep-expense-count').innerText = expenses.length;
+  document.getElementById('rep-net-val').innerText = `₹ ${Math.abs(netProfit).toFixed(2)}`;
+
+  const pill = document.getElementById('rep-profit-pill');
   if (netProfit >= 0) {
-    pBox.className = 'profit-banner profit';
-    pLabel.innerText = 'NET PROFIT';
+    pill.className = 'profit-badge-pill pill-profit';
+    pill.innerText = 'NET PROFIT ✓';
   } else {
-    pBox.className = 'profit-banner loss';
-    pLabel.innerText = 'NET LOSS';
+    pill.className = 'profit-badge-pill pill-loss';
+    pill.innerText = 'NET LOSS ⚠️';
   }
 
   // Top Selling Dishes
@@ -192,59 +397,71 @@ function renderReports() {
   orders.forEach(o => {
     (o.items || []).forEach(it => {
       if (!itemMap[it.name]) itemMap[it.name] = { qty: 0, revenue: 0 };
-      itemMap[it.name].qty += it.qty;
-      itemMap[it.name].revenue += (it.price * it.qty);
+      itemMap[it.name].qty += (it.qty || 1);
+      itemMap[it.name].revenue += ((it.price || 0) * (it.qty || 1));
     });
   });
-  const topDishes = Object.entries(itemMap).sort((a,b) => b[1].revenue - a[1].revenue).slice(0, 5);
 
-  const topContainer = document.getElementById('top-selling-container');
+  const topDishes = Object.entries(itemMap).sort((a,b) => b[1].revenue - a[1].revenue).slice(0, 5);
+  const topBox = document.getElementById('top-selling-container');
   if (topDishes.length === 0) {
-    topContainer.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">No sales data for this period.</div>';
+    topBox.innerHTML = '<div style="text-align:center;padding:18px;color:var(--text-muted);font-size:12px;">No food items sold in this timeframe.</div>';
   } else {
-    topContainer.innerHTML = topDishes.map(([name, d]) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px;">
-        <div><b>${name}</b> <small style="color:var(--text-muted);">(${d.qty} sold)</small></div>
-        <div style="font-weight:700;color:var(--primary);">₹ ${d.revenue.toFixed(2)}</div>
+    topBox.innerHTML = topDishes.map(([name, stat], idx) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:13px;font-weight:800;color:var(--text-muted);width:18px;">#${idx+1}</span>
+          <div>
+            <div style="font-weight:700;font-size:13px;color:#0f172a;">${name}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${stat.qty} Plates Sold</div>
+          </div>
+        </div>
+        <div style="font-weight:800;color:var(--primary);font-size:14px;">₹ ${stat.revenue.toFixed(2)}</div>
       </div>
     `).join('');
   }
 
-  // Daily Breakdown Table
-  const dayMap = {};
+  // Daily Ledger Rows
+  const dayLedger = {};
   orders.forEach(o => {
-    const d = o.date || today;
-    if (!dayMap[d]) dayMap[d] = { sales: 0, exp: 0 };
-    dayMap[d].sales += (o.total || 0);
+    const d = o.date || todayStr;
+    if (!dayLedger[d]) dayLedger[d] = { sales: 0, exp: 0, count: 0 };
+    dayLedger[d].sales += (o.total || 0);
+    dayLedger[d].count += 1;
   });
   expenses.forEach(e => {
-    const d = e.date || today;
-    if (!dayMap[d]) dayMap[d] = { sales: 0, exp: 0 };
-    dayMap[d].exp += (e.amount || 0);
+    const d = e.date || todayStr;
+    if (!dayLedger[d]) dayLedger[d] = { sales: 0, exp: 0, count: 0 };
+    dayLedger[d].exp += (e.amount || 0);
   });
 
-  const dayRows = Object.entries(dayMap).sort((a,b) => b[0].localeCompare(a[0]));
-  const tbody = document.getElementById('daily-breakdown-body');
-  if (dayRows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;">No records available.</td></tr>';
+  const dayEntries = Object.entries(dayLedger).sort((a,b) => b[0].localeCompare(a[0]));
+  const tbody = document.getElementById('daily-ledger-body');
+  if (dayEntries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">No records found for the selected period.</td></tr>';
   } else {
-    tbody.innerHTML = dayRows.map(([d, val]) => `
-      <tr>
-        <td><b>${d}</b></td>
-        <td>₹ ${val.sales.toFixed(2)}</td>
-        <td style="color:#dc2626;">₹ ${val.exp.toFixed(2)}</td>
-        <td style="font-weight:700;color:${(val.sales - val.exp) >= 0 ? '#059669' : '#dc2626'};">
-          ₹ ${(val.sales - val.exp).toFixed(2)}
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = dayEntries.map(([dateKey, val]) => {
+      const net = val.sales - val.exp;
+      return `
+        <tr>
+          <td><b>${dateKey}</b></td>
+          <td>${val.count}</td>
+          <td style="color:#0284c7;font-weight:700;">₹ ${val.sales.toFixed(2)}</td>
+          <td style="color:#dc2626;">₹ ${val.exp.toFixed(2)}</td>
+          <td style="font-weight:800;color:${net >= 0 ? '#059669' : '#dc2626'};">
+            ${net >= 0 ? '+' : '-'}₹ ${Math.abs(net).toFixed(2)}
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
 }
 
 function exportCSVReport() {
   const data = window.getData();
-  let csv = "TableMaster Pro - Financial Performance Statement\n";
-  csv += "Software Developed by,Debapriya Sarkar (Contact: 9046356631)\n";
+  let csv = "TableMaster Pro - Financial Statement Export\n";
+  csv += `Report Period,${currentPeriod}\n`;
+  csv += "Software Developed by,Debapriya Sarkar (Contact: 9046356631)\n\n";
   csv += "Type,Date,Reference,Amount\n";
 
   (data.orders || []).filter(o => o.status === 'completed').forEach(o => {
@@ -257,14 +474,14 @@ function exportCSVReport() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `TableMaster_Report_${window.todayStr()}.csv`;
+  a.download = `TableMaster_Report_${currentPeriod}_${window.todayStr()}.csv`;
   a.click();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
-      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      const cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
       if (cafeId) {
         bindCafeCloudListener(cafeId, renderReports);
       } else {
