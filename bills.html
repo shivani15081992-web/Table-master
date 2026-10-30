@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Bills Management — TableMaster Pro</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-box">
+      <span id="txt-cafe-name">Bills Management</span>
+      <div class="role-badge">BILLING</div>
+    </div>
+    <div class="top-actions">
+      <div class="sync-badge syncing" id="sync-status">🔄 Online</div>
+      <button class="lang-toggle-btn" onclick="toggleLanguage(renderBills)">🌐</button>
+    </div>
+  </header>
+
+  <main class="main-wrapper">
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>Order Bills Ledger</span>
+      </div>
+      <div id="bills-ledger-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </main>
+
+  <div id="print-area"></div>
+
+  <nav class="bottom-bar">
+    <a href="index.html" class="bar-item">Home</a>
+    <a href="pos.html" class="bar-item">Order</a>
+    <a href="kitchen.html" class="bar-item">Kitchen</a>
+    <a href="bills.html" class="bar-item active">Bills</a>
+    <a href="menu.html" class="bar-item">Menu</a>
+  </nav>
+
+  <!-- MODAL -->
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
+    <div class="sheet-modal">
+      <div class="sheet-head">
+        <div class="sheet-title" id="sheet-title">Receipt / Print</div>
+        <button class="btn-x" onclick="closeSheet()">✕</button>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
+  </div>
+
+<script>
+function renderBills() {
+  const data = window.getData();
+  updateHeaderBrand(data);
+  const orders = [...(data.orders || [])].sort((a,b) => (b.kotNo||0) - (a.kotNo||0));
+  const container = document.getElementById('bills-ledger-list');
+
+  if (orders.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">No bills registered yet.</div>';
+    return;
+  }
+
+  container.innerHTML = orders.map(o => {
+    const isSettled = o.status === 'completed';
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;">
+        <div>
+          <div style="font-weight:700;">#Bill-${o.billNo} (${o.tableId.toUpperCase()})
+            <span class="badge ${isSettled ? 'cat-sal' : 'cat-raw'}">${isSettled ? 'PAID' : 'PENDING'}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+            ${o.date} ${o.time||''} · <b>₹ ${(o.total||0).toFixed(2)}</b>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button class="btn-sm-outline" onclick="showReceiptSheet('${o.id}')">Receipt</button>
+          ${!isSettled ? `<button class="btn-primary" style="width:auto;padding:5px 10px;font-size:11px;" onclick="settleBill('${o.id}')">Settle</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function settleBill(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (!o) return;
+  if (!confirm(`Settle ₹ ${(o.total||0).toFixed(2)} for Bill #${o.billNo}?`)) return;
+  o.status = 'completed';
+  const tbl = (data.tables || []).find(t => t.id === o.tableId);
+  if (tbl) tbl.status = 'available';
+  window.cloudSave(); renderBills();
+}
+
+function showReceiptSheet(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (!o) return;
+
+  const upiString = `upi://pay?pa=${data.upi}&pn=${encodeURIComponent(data.name)}&am=${o.total.toFixed(2)}&cu=INR`;
+  const upiQrImg = createSafeQR(upiString);
+
+  const receiptHtml = `
+    <div class="receipt-paper" id="paper-element">
+      <div class="c" style="font-size:13px;font-weight:bold;">${data.name}</div>
+      <div class="c" style="font-size:9.5px;">Ph: ${data.phone}</div>
+      <div class="c" style="font-size:9.5px;">${data.address}</div>
+      <hr>
+      <div>Bill #: ${o.billNo} | Channel: ${o.tableId.toUpperCase()}</div>
+      <div>Date: ${o.date} ${o.time||''}</div>
+      <hr>
+      ${(o.items||[]).map(i => `<div style="display:flex;justify-content:space-between;"><span>${i.name} x${i.qty}</span><span>₹ ${(i.price*i.qty).toFixed(2)}</span></div>`).join('')}
+      <hr>
+      <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:12px;"><span>Grand Total:</span><span>₹ ${o.total.toFixed(2)}</span></div>
+      ${upiQrImg ? `<div class="c" style="margin-top:6px;"><img src="${upiQrImg}" class="qr-img"><div style="font-size:8.5px;">Scan UPI to Pay</div></div>` : ''}
+      <hr>
+      <!-- MANDATORY DEVELOPER BRANDING PROMOTION -->
+      <div class="receipt-dev">
+        Software Developed by: Debapriya Sarkar<br>
+        Contact: 9046356631
+      </div>
+      <div class="receipt-promo">
+        For any Custom Software or Website Development, Contact Us.
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:12px;" onclick="printReceipt()">Print Bill (Thermal Receipt)</button>
+  `;
+  openSheet("Thermal Receipt", receiptHtml);
+}
+
+function printReceipt() {
+  const el = document.getElementById('paper-element');
+  if (el) {
+    document.getElementById('print-area').innerHTML = el.outerHTML;
+    setTimeout(() => { window.print(); }, 100);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (initFirebase()) {
+    auth.onAuthStateChanged((user) => {
+      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (cafeId) bindCafeCloudListener(cafeId, renderBills);
+      else window.location.href = 'index.html';
+    });
+  }
+});
+</script>
+</body>
+</html>
