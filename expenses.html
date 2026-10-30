@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Expenses Log — TableMaster Pro</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-box">
+      <span id="txt-cafe-name">Expenses Log</span>
+      <div class="role-badge">EXPENSE</div>
+    </div>
+    <div class="top-actions">
+      <div class="sync-badge syncing" id="sync-status">🔄 Online</div>
+    </div>
+  </header>
+
+  <main class="main-wrapper">
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>Daily Expense Entries</span>
+        <button class="btn-sm-outline" onclick="openAddExpenseSheet()">+ Add Expense</button>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+          <tbody id="expense-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-bar">
+    <a href="index.html" class="bar-item">Home</a>
+    <a href="pos.html" class="bar-item">Order</a>
+    <a href="expenses.html" class="bar-item active">Expenses</a>
+    <a href="bills.html" class="bar-item">Bills</a>
+    <a href="menu.html" class="bar-item">Menu</a>
+  </nav>
+
+  <!-- MODAL -->
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
+    <div class="sheet-modal">
+      <div class="sheet-head">
+        <div class="sheet-title" id="sheet-title">Add Expense</div>
+        <button class="btn-x" onclick="closeSheet()">✕</button>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
+  </div>
+
+<script>
+function renderExpenses() {
+  const data = window.getData();
+  updateHeaderBrand(data);
+  const list = data.expenses || [];
+  const tbody = document.getElementById('expense-table-body');
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">No expenses recorded yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(e => `
+    <tr>
+      <td><b>${e.date}</b></td>
+      <td><span class="badge cat-raw">${e.category}</span></td>
+      <td>${e.desc}</td>
+      <td style="font-weight:700;color:#dc2626;">₹ ${e.amount.toFixed(2)}</td>
+      <td><button class="btn-danger" style="padding:2px 6px;font-size:10px;" onclick="deleteExpenseEntry('${e.id}')">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function openAddExpenseSheet() {
+  const form = `
+    <label>Category</label>
+    <select id="exp-cat">
+      <option value="Raw Materials">Raw Materials (Kitchen)</option>
+      <option value="Utilities">Utilities (Gas/Electric)</option>
+      <option value="Salaries">Staff Salaries</option>
+      <option value="Rent">Rent</option>
+      <option value="Other">Other</option>
+    </select>
+    <label>Description</label>
+    <input type="text" id="exp-desc" placeholder="e.g. 5L Milk & Sugar">
+    <label>Amount (₹)</label>
+    <input type="number" id="exp-amt" placeholder="500">
+    <button class="btn-primary" onclick="saveNewExpense()">Save Expense</button>
+  `;
+  openSheet("Add Expense Entry", form);
+}
+
+function saveNewExpense() {
+  const data = window.getData();
+  const cat = document.getElementById('exp-cat').value;
+  const desc = document.getElementById('exp-desc').value.trim();
+  const amt = parseFloat(document.getElementById('exp-amt').value);
+  if (!desc || isNaN(amt) || amt <= 0) return;
+  if (!data.expenses) data.expenses = [];
+  data.expenses.unshift({ id: 'exp_' + Date.now(), category: cat, desc, amount: amt, date: window.todayStr() });
+  window.cloudSave(); closeSheet(); renderExpenses();
+}
+
+function deleteExpenseEntry(id) {
+  const data = window.getData();
+  if (!confirm("Delete expense record?")) return;
+  data.expenses = (data.expenses || []).filter(e => e.id !== id);
+  window.cloudSave(); renderExpenses();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (initFirebase()) {
+    auth.onAuthStateChanged((user) => {
+      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (cafeId) bindCafeCloudListener(cafeId, renderExpenses);
+      else window.location.href = 'index.html';
+    });
+  }
+});
+</script>
+</body>
+</html>
