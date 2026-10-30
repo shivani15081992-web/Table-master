@@ -1,7 +1,7 @@
 /* ==========================================================================
    TableMaster Pro — Shared Core Engine (shared.js)
    Developer: Debapriya Sarkar (Contact: 9046356631)
-   Ultra-Fast Cache-First & Instant Sync Architecture
+   Ultra-Fast Cache-First & Instant Sync Architecture + QR Engine
    ========================================================================== */
 
 const firebaseConfig = {
@@ -18,7 +18,7 @@ let auth = null;
 let db = null;
 let currentCafeListener = null;
 
-// ইনবিল্ট গোল্ডেন ভেক্টর কাটলারি লোগো (যখন রেস্তোরাঁ নিজস্ব লোগো দেয় না)
+// ইনবিল্ট গোল্ডেন ভেক্টর কাটলারি লোগো
 const DEFAULT_GOLD_SVG_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
 function initFirebase() {
@@ -71,12 +71,10 @@ window.getData = function() { return window.RESTAURANT_DATA || {}; };
 
 /* ==========================================================================
    CACHE-FIRST INSTANT CLOUD ENGINE
-   (কোনো পেজ লোডিং ল্যাগ থাকবে না, মিলি-সেকেন্ডে স্ক্রিন ওপেন হবে)
    ========================================================================== */
 function bindCafeCloudListener(cafeId, onUpdateCallback) {
   if (!db || !cafeId) return;
 
-  // ১. মেমোরি / লোকাল স্টোরেজ থেকে তাৎক্ষণিক ০ সেকেন্ডে রেন্ডার
   const cached = localStorage.getItem('tmpro_cafe_cache_' + cafeId);
   if (cached) {
     try {
@@ -94,7 +92,6 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
 
   if (currentCafeListener) { try { currentCafeListener(); } catch(e){} }
 
-  // ২. ব্যাকগ্রাউন্ডে ফায়ারবেসের রিয়েল-টাইম সিঙ্ক
   currentCafeListener = db.collection("cafes").doc(cafeId).onSnapshot((docSnap) => {
     if (docSnap.exists) {
       const serverData = docSnap.data();
@@ -119,7 +116,7 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
     }
     if (typeof onUpdateCallback === 'function') onUpdateCallback();
   }, (err) => {
-    console.warn("Firestore sync background warning:", err);
+    console.warn("Firestore sync warning:", err);
     if (badge) { 
       badge.className = 'sync-badge online'; 
       badge.innerHTML = '⚡ Local Mode'; 
@@ -128,7 +125,6 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
   });
 }
 
-// ক্লাউডে সুরক্ষিত সেভ (ডেটা ওভাররাইট রোধ)
 window.cloudSave = function() {
   const data = window.getData();
   if (!data || !data.cafeId || !db) return;
@@ -183,7 +179,6 @@ function toggleLanguage(callback) {
   if (typeof callback === 'function') callback();
 }
 
-// হেডার ও লোগো রেন্ডারিং (স্মার্ট ফলব্যাক)
 function updateHeaderBrand(data) {
   const nameEl = document.getElementById('txt-cafe-name');
   if (nameEl) nameEl.innerText = data.name || 'TableMaster Pro';
@@ -200,7 +195,105 @@ function updateHeaderBrand(data) {
   }
 }
 
-// মডাল শীট ইউটিলিটি
+/* ==========================================================================
+   QR ENGINE & TABLE QR UTILITIES (Fix for Missing Table QRs)
+   ========================================================================== */
+function createSafeQR(text) {
+  if (!text) return '';
+  try {
+    if (typeof qrcode !== 'undefined') {
+      const qr = qrcode(0, 'M');
+      qr.addData(String(text));
+      qr.make();
+      return qr.createDataURL(5);
+    }
+  } catch (err) {
+    console.warn("Local QR generation fallback:", err);
+  }
+  // ফলব্যাক অনলাইন দ্রুততম কিউআর এপিআই (যদি লাইব্রেরি মিস করে)
+  return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(text)}`;
+}
+
+function generateTableQRUrl(tableId) {
+  const data = window.getData();
+  const currentOrigin = window.location.origin;
+  const pathParts = window.location.pathname.split('/');
+  pathParts.pop(); // পেজের নাম বাদ দেওয়া (যেমন index.html)
+  const basePath = pathParts.join('/');
+  
+  return `${currentOrigin}${basePath}/customer.html?cafe=${encodeURIComponent(data.cafeId)}&table=${encodeURIComponent(tableId)}`;
+}
+
+function buildQRCardHtml(tableId) {
+  const data = window.getData();
+  const tbl = (data.tables || []).find(t => t.id === tableId);
+  if (!tbl) return '';
+  const url = generateTableQRUrl(tableId);
+  const qrImg = createSafeQR(url);
+
+  return `
+    <div class="table-qr-card" id="qr-print-${tableId}" style="width:100%;max-width:320px;background:#fff;border:2px dashed #94a3b8;border-radius:12px;padding:16px;margin:0 auto;text-align:center;">
+      <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:2px;">${data.name || 'Restaurant'}</div>
+      <div style="font-size:24px;font-weight:800;color:#2563eb;margin-bottom:10px;">${tbl.name}</div>
+      <img src="${qrImg}" style="width:180px;height:180px;display:block;margin:0 auto 10px;" alt="Table QR">
+      <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;text-align:left;line-height:1.4;font-size:11px;border:1px solid #e2e8f0;">
+        <div style="font-weight:800;color:#0f172a;margin-bottom:3px;">📱 Scan to Order / স্ক্যান করে খাবার বাছুন</div>
+        <div>1. Open camera & scan QR code</div>
+        <div>2. Select dishes from digital menu</div>
+        <div>3. Food order sent directly to kitchen</div>
+      </div>
+    </div>
+  `;
+}
+
+window.showTableQR = function(tableId) {
+  const tbl = (window.getData().tables || []).find(t => t.id === tableId);
+  if (!tbl) return;
+  const html = `
+    <div style="padding:6px 0;">${buildQRCardHtml(tableId)}</div>
+    <div style="display:flex;gap:6px;margin-top:12px;">
+      <button class="btn-primary" onclick="printTableQR('${tableId}')">🖨️ প্রিন্ট করুন</button>
+      <button class="btn-sm-outline" style="flex:0.6" onclick="copyQRUrl('${tableId}')">🔗 কপি লিংক</button>
+    </div>
+  `;
+  openSheet('QR — ' + tbl.name, html);
+};
+
+window.printTableQR = function(tableId) {
+  const card = document.getElementById('qr-print-' + tableId);
+  if (!card) return;
+  const printArea = document.getElementById('print-area') || document.body;
+  const prevContent = printArea.innerHTML;
+  printArea.innerHTML = card.outerHTML;
+  setTimeout(() => {
+    window.print();
+    printArea.innerHTML = prevContent;
+  }, 100);
+};
+
+window.copyQRUrl = function(tableId) {
+  const url = generateTableQRUrl(tableId);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => alert('✅ লিংক কপি হয়েছে!:\n' + url)).catch(() => prompt('লিংক কপি করুন:', url));
+  } else {
+    prompt('লিংক কপি করুন:', url);
+  }
+};
+
+window.showAllTableQRs = function() {
+  const data = window.getData();
+  const cardsHtml = (data.tables || []).map(t => `
+    <div style="margin-bottom:16px;">
+      ${buildQRCardHtml(t.id)}
+      <button class="btn-sm-outline" style="width:100%;margin-top:6px;" onclick="printTableQR('${t.id}')">🖨️ ${t.name} প্রিন্ট</button>
+    </div>
+  `).join('');
+  openSheet('সব টেবিলের QR', `<div style="max-height:70dvh;overflow-y:auto;">${cardsHtml || '<div style="text-align:center;padding:20px;">কোনো টেবিল নেই</div>'}</div>`);
+};
+
+/* ==========================================================================
+   MODAL UTILITIES
+   ========================================================================== */
 function openSheet(title, html) {
   const tEl = document.getElementById('sheet-title');
   const bEl = document.getElementById('sheet-body');
@@ -217,16 +310,6 @@ function closeSheet() {
 
 function sheetBackdropClick(e) {
   if (e.target.id === 'sheet-backdrop') closeSheet();
-}
-
-function createSafeQR(text) {
-  if (!text) return '';
-  try {
-    const qr = qrcode(0, 'M');
-    qr.addData(String(text));
-    qr.make();
-    return qr.createDataURL(4);
-  } catch (err) { return ''; }
 }
 
 // সার্ভিস ওয়ার্কার রেজিস্টার
