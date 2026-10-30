@@ -1,7 +1,7 @@
 /* ==========================================================================
    TableMaster Pro — Shared Core Engine (shared.js)
    Developer: Debapriya Sarkar (Contact: 9046356631)
-   Ultra-Fast Cache-First & Instant Sync Architecture + QR Engine
+   Ultra-Fast Cache-First & Atomic Order Synchronization
    ========================================================================== */
 
 const firebaseConfig = {
@@ -47,7 +47,7 @@ window.todayStr = function() {
 // গ্লোবাল স্টেট
 window.RESTAURANT_DATA = {
   cafeId: 'default_cafe', name: 'TableMaster Bistro', phone: '', address: '',
-  masterPin: '1234', gstRate: 0, serviceRate: 0, logo: '',
+  masterPin: '1234', gstRate: 0, serviceRate: 0, logo: '', googleReview: '',
   tables: [
     { id: 't1', name: 'T-01', seats: 2, status: 'available', booking: null },
     { id: 't2', name: 'T-02', seats: 4, status: 'available', booking: null },
@@ -70,7 +70,7 @@ window.CURRENT_USER_ROLE = sessionStorage.getItem('tmpro_role_mode') || 'owner';
 window.getData = function() { return window.RESTAURANT_DATA || {}; };
 
 /* ==========================================================================
-   CACHE-FIRST INSTANT CLOUD ENGINE
+   CACHE-FIRST INSTANT CLOUD ENGINE (জিরো-ল্যাগ & নো-ওভাররাইট)
    ========================================================================== */
 function bindCafeCloudListener(cafeId, onUpdateCallback) {
   if (!db || !cafeId) return;
@@ -116,7 +116,7 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
     }
     if (typeof onUpdateCallback === 'function') onUpdateCallback();
   }, (err) => {
-    console.warn("Firestore sync warning:", err);
+    console.warn("Firestore sync background warning:", err);
     if (badge) { 
       badge.className = 'sync-badge online'; 
       badge.innerHTML = '⚡ Local Mode'; 
@@ -125,6 +125,7 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
   });
 }
 
+// ক্লাউডে সুরক্ষিত আংশিক সেভ
 window.cloudSave = function() {
   const data = window.getData();
   if (!data || !data.cafeId || !db) return;
@@ -196,7 +197,7 @@ function updateHeaderBrand(data) {
 }
 
 /* ==========================================================================
-   QR ENGINE & TABLE QR UTILITIES (Fix for Missing Table QRs)
+   QR ENGINE & TABLE QR UTILITIES
    ========================================================================== */
 function createSafeQR(text) {
   if (!text) return '';
@@ -208,9 +209,8 @@ function createSafeQR(text) {
       return qr.createDataURL(5);
     }
   } catch (err) {
-    console.warn("Local QR generation fallback:", err);
+    console.warn("Local QR fallback:", err);
   }
-  // ফলব্যাক অনলাইন দ্রুততম কিউআর এপিআই (যদি লাইব্রেরি মিস করে)
   return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(text)}`;
 }
 
@@ -218,9 +218,8 @@ function generateTableQRUrl(tableId) {
   const data = window.getData();
   const currentOrigin = window.location.origin;
   const pathParts = window.location.pathname.split('/');
-  pathParts.pop(); // পেজের নাম বাদ দেওয়া (যেমন index.html)
+  pathParts.pop();
   const basePath = pathParts.join('/');
-  
   return `${currentOrigin}${basePath}/customer.html?cafe=${encodeURIComponent(data.cafeId)}&table=${encodeURIComponent(tableId)}`;
 }
 
