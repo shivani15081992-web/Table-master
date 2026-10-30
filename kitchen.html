@@ -43,13 +43,8 @@
     </div>
   </main>
 
-  <!-- BOTTOM NAVIGATION -->
-  <nav class="bottom-bar" id="kitchen-nav-bar">
-    <a href="kitchen.html" class="bar-item active">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
-      <span>Kitchen</span>
-    </a>
-  </nav>
+  <!-- DYNAMIC BOTTOM NAVIGATION (মালিকের জন্য সম্পূর্ণ ৫টি ট্যাব এবং স্টাফের জন্য নির্দিষ্ট ট্যাব) -->
+  <nav class="bottom-bar" id="kitchen-dynamic-nav"></nav>
 
 <script>
 let currentCafeId = '';
@@ -58,8 +53,7 @@ let lastKnownKOTCount = -1;
 function handleLogout() {
   const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
   if (confirm("Log out from Kitchen Monitor?")) {
-    sessionStorage.removeItem('tmpro_role_mode');
-    sessionStorage.removeItem('tmpro_cafe_id');
+    sessionStorage.clear();
     auth.signOut().then(() => {
       window.location.href = (role === 'owner') ? 'index.html' : 'staff.html';
     });
@@ -76,9 +70,56 @@ function getChannelLabel(tId, data) {
   return tbl ? '🪑 ' + tbl.name : 'Channel: ' + tId;
 }
 
+function setupKitchenNavigation() {
+  const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
+  const nav = document.getElementById('kitchen-dynamic-nav');
+  const roleBadge = document.getElementById('active-user-role');
+
+  if (role === 'kitchen') {
+    // শুধুমাত্র কিচেন স্টাফ
+    roleBadge.innerText = "KITCHEN";
+    roleBadge.style.background = "#fef3c7";
+    roleBadge.style.color = "#b45309";
+    nav.innerHTML = `
+      <a href="kitchen.html" class="bar-item active">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+        <span>Kitchen Live</span>
+      </a>
+    `;
+  } else {
+    // মালিক (Owner) — সম্পূর্ণ ৫টি ট্যাব
+    roleBadge.innerText = "OWNER";
+    roleBadge.style.background = "#dbeafe";
+    roleBadge.style.color = "#1e40af";
+    nav.innerHTML = `
+      <a href="index.html" class="bar-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span>Home</span>
+      </a>
+      <a href="pos.html" class="bar-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+        <span>Order</span>
+      </a>
+      <a href="kitchen.html" class="bar-item active">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+        <span>Kitchen</span>
+      </a>
+      <a href="bills.html" class="bar-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>Bills</span>
+      </a>
+      <a href="menu.html" class="bar-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        <span>Menu</span>
+      </a>
+    `;
+  }
+}
+
 function renderKitchen() {
   const data = window.getData();
   updateHeaderBrand(data);
+  setupKitchenNavigation();
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
   const liveKOT = (data.orders || []).filter(o => o.status === 'preparing');
@@ -142,15 +183,35 @@ async function markKOTReady(orderId) {
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
-    auth.onAuthStateChanged((user) => {
-      currentCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (currentCafeId) {
-        bindCafeCloudListener(currentCafeId, renderKitchen);
-        // কিচেনের ফোনে ব্যাকগ্রাউন্ড পুশ পারমিশন সক্রিয় করা
-        window.enableFCMNotifications('kitchen');
-      } else {
-        window.location.href = 'staff.html';
+    auth.onAuthStateChanged(async (user) => {
+      if (!user || user.isAnonymous) {
+        window.location.href = 'index.html';
+        return;
       }
+
+      // ব্যবহারকারীর সঠিক রোল যাচাই
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      let userRole = 'owner';
+      if (userDoc.exists) {
+        userRole = userDoc.data().role || 'kitchen';
+      }
+
+      // ওয়েটার হলে তাকে pos.html এ পাঠানো
+      if (userRole === 'waiter') {
+        window.location.href = 'pos.html';
+        return;
+      }
+
+      currentCafeId = (userRole === 'owner') 
+        ? ('cafe_' + user.uid) 
+        : (userDoc.data().cafeId || sessionStorage.getItem('tmpro_cafe_id'));
+
+      sessionStorage.setItem('tmpro_cafe_id', currentCafeId);
+      sessionStorage.setItem('tmpro_role_mode', userRole);
+      window.CURRENT_USER_ROLE = userRole;
+
+      bindCafeCloudListener(currentCafeId, renderKitchen);
+      window.enableFCMNotifications(userRole);
     });
   }
 });
