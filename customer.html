@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Customer Self-Order — TableMaster Pro</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+</head>
+<body class="customer-mode" style="background:var(--cream);">
+  <header class="customer-hero">
+    <div class="customer-logo-circle">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+    </div>
+    <h1 class="customer-cafe-name" id="cust-cafe-name">Restaurant</h1>
+    <div class="customer-divider"><span></span><i>◆</i><span></span></div>
+    <div class="customer-table-badge" id="cust-table-badge">WELCOME</div>
+  </header>
+
+  <main class="customer-main" id="cust-menu-area">
+    <div class="customer-loading-wrap" id="cust-loading">
+      <div class="customer-loading-spinner"></div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#6b5540;">Loading Menu...</div>
+    </div>
+    <div id="cust-menu-content" style="display:none;">
+      <div class="customer-dish-grid" id="cust-dish-grid"></div>
+    </div>
+  </main>
+
+  <div class="customer-cart-bar" id="cust-cart-bar" style="display:none;">
+    <div class="customer-cart">
+      <div>
+        <div class="ccb-label" id="cust-cart-count">0 Items</div>
+        <div class="ccb-price" id="cust-cart-total">₹ 0.00</div>
+      </div>
+      <button class="ccb-btn" onclick="submitCustomerOrderToKitchen()">Place Order to Kitchen →</button>
+    </div>
+  </div>
+
+<script>
+let custCart = [];
+let targetCafe = null;
+let targetTable = null;
+
+function renderCustomerMenu() {
+  const data = window.getData();
+  document.getElementById('cust-cafe-name').innerText = data.name || 'Restaurant';
+  const tbl = (data.tables || []).find(t => t.id === targetTable);
+  document.getElementById('cust-table-badge').innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
+
+  document.getElementById('cust-loading').style.display = 'none';
+  document.getElementById('cust-menu-content').style.display = 'block';
+
+  document.getElementById('cust-dish-grid').innerHTML = (data.menu || []).map(d => `
+    <div class="customer-dish-card" onclick="addToCustCart('${d.id}')">
+      <div class="cdc-category">${d.category}</div>
+      <div class="cdc-name">${d.name}</div>
+      <div class="cdc-footer">
+        <div class="cdc-price">₹ ${d.price}</div>
+        <button class="cdc-add-btn">+</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateCustCartBar();
+}
+
+function addToCustCart(dishId) {
+  const data = window.getData();
+  const dish = (data.menu || []).find(d => d.id === dishId);
+  if (!dish) return;
+  const match = custCart.find(i => i.dishId === dishId);
+  if (match) match.qty += 1;
+  else custCart.push({ dishId, name: dish.name, price: dish.price, qty: 1, isAddOn: true });
+  updateCustCartBar();
+}
+
+function updateCustCartBar() {
+  const count = custCart.reduce((s, i) => s + i.qty, 0);
+  const total = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
+  const bar = document.getElementById('cust-cart-bar');
+  if (count > 0) {
+    bar.style.display = 'block';
+    document.getElementById('cust-cart-count').innerText = `${count} Items Selected`;
+    document.getElementById('cust-cart-total').innerText = `₹ ${total.toFixed(2)}`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+async function submitCustomerOrderToKitchen() {
+  if (custCart.length === 0 || !db || !targetCafe) return;
+  try {
+    const cafeRef = db.collection("cafes").doc(targetCafe);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+    const cData = docSnap.data();
+    if (!cData.orders) cData.orders = [];
+
+    const orderNum = 100 + cData.orders.length + 1;
+    const subtotal = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
+
+    cData.orders.push({
+      id: 'ord_' + Date.now(), kotNo: orderNum, billNo: orderNum,
+      tableId: targetTable || 't1', items: custCart,
+      subtotal, total: subtotal, status: 'preparing', source: 'customer_qr',
+      date: window.todayStr(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+
+    const tbl = (cData.tables || []).find(t => t.id === targetTable);
+    if (tbl) tbl.status = 'occupied';
+
+    await cafeRef.update({ orders: cData.orders, tables: cData.tables });
+    custCart = [];
+    document.getElementById('cust-cart-bar').style.display = 'none';
+    document.getElementById('cust-menu-area').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="font-size:48px;">✓</div>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;margin-top:10px;">Order Placed Directly to Kitchen!</h2>
+        <p style="color:#6b5540;font-size:13px;margin-top:6px;">Your food is being prepared. Thank you!</p>
+      </div>
+    `;
+  } catch(err) {
+    alert("Order Submission Failed: " + err.message);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (initFirebase()) {
+    const params = new URLSearchParams(window.location.search);
+    targetCafe = params.get('cafe');
+    targetTable = params.get('table');
+    if (targetCafe) bindCafeCloudListener(targetCafe, renderCustomerMenu);
+    else document.getElementById('cust-loading').innerHTML = 'Invalid Table QR Code!';
+  }
+});
+</script>
+</body>
+</html>
