@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Staff Mobile Login — TableMaster Pro</title>
+<title>Staff Terminal Login — TableMaster Pro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a1a">
 <link rel="stylesheet" href="shared.css">
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
@@ -11,32 +13,42 @@
 <script src="shared.js"></script>
 </head>
 <body style="min-height:100dvh;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:#fff;padding:26px 20px;border-radius:20px;width:100%;max-width:400px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
-    <div style="text-align:center;margin-bottom:18px;">
-      <div style="width:50px;height:50px;background:#1a1a1a;border:1.5px solid var(--gold);border-radius:12px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e8d5a1" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+  <div style="background:#fff;padding:28px 22px;border-radius:20px;width:100%;max-width:400px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45);">
+    
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="width:52px;height:52px;background:#1a1a1a;border:1.5px solid var(--gold);border-radius:14px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(201,169,97,0.25);">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e8d5a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+        </svg>
       </div>
-      <h2 style="font-size:18px;font-weight:800;color:#0f172a;">Staff Access Portal</h2>
-      <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Sign in with your Registered 10-Digit Mobile</p>
+      <h2 style="font-size:19px;font-weight:800;color:#0f172a;">Staff Terminal Access</h2>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:2px;">Sign in with your Registered 10-Digit Mobile</p>
     </div>
 
-    <form onsubmit="handleStaffLogin(event)">
+    <form onsubmit="handleStaffTerminalLogin(event)">
       <label>10-Digit Mobile Number</label>
-      <input id="stf-phone" type="tel" pattern="[0-9]{10}" maxlength="10" required placeholder="e.g. 9876543210">
-      <label>Staff Password</label>
-      <input id="stf-pass" type="password" required placeholder="••••••••">
-      <button type="submit" class="btn-primary" id="btn-stf-submit" style="margin-top:6px;">Login to Terminal →</button>
+      <input id="stf-login-phone" type="tel" pattern="[0-9]{10}" maxlength="10" required placeholder="e.g. 9876543210" autocomplete="username">
+      
+      <label>Password</label>
+      <input id="stf-login-pass" type="password" required placeholder="••••••••" autocomplete="current-password">
+      
+      <button type="submit" class="btn-primary" id="btn-stf-submit" style="margin-top:8px;">Sign In to Terminal →</button>
     </form>
-    <div style="text-align:center;margin-top:14px;">
-      <a href="index.html" style="font-size:11.5px;color:var(--text-muted);text-decoration:none;">← Back to Restaurant Owner Login</a>
+
+    <div style="text-align:center;margin-top:16px;">
+      <a href="index.html" style="font-size:12px;color:var(--primary);font-weight:700;text-decoration:none;">← Back to Restaurant Owner Login</a>
+    </div>
+
+    <div style="text-align:center;font-size:10px;color:#94a3b8;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:10px;">
+      TableMaster Pro Security by <b>Debapriya Sarkar</b> (9046356631)
     </div>
   </div>
 
 <script>
-async function handleStaffLogin(e) {
+async function handleStaffTerminalLogin(e) {
   e.preventDefault();
-  const phone = document.getElementById('stf-phone').value.trim();
-  const pass = document.getElementById('stf-pass').value.trim();
+  const phone = document.getElementById('stf-login-phone').value.trim();
+  const pass = document.getElementById('stf-login-pass').value.trim();
   const btn = document.getElementById('btn-stf-submit');
 
   if (!/^[0-9]{10}$/.test(phone)) {
@@ -44,32 +56,42 @@ async function handleStaffLogin(e) {
     return;
   }
 
-  btn.disabled = true; btn.innerText = "Authenticating...";
+  btn.disabled = true; 
+  btn.innerText = "Authenticating...";
   const staffEmail = `${phone}@tablemaster.com`;
 
   try {
     const cred = await auth.signInWithEmailAndPassword(staffEmail, pass);
     const userDoc = await db.collection("users").doc(cred.user.uid).get();
+
     if (userDoc.exists) {
       const uData = userDoc.data();
-      sessionStorage.setItem('tmpro_role_mode', uData.role || 'waiter');
-      sessionStorage.setItem('tmpro_cafe_id', uData.cafeId);
-      if (uData.role === 'kitchen') {
+      const role = uData.role || 'waiter';
+      const cafeId = uData.cafeId;
+
+      sessionStorage.setItem('tmpro_role_mode', role);
+      sessionStorage.setItem('tmpro_cafe_id', cafeId);
+
+      if (role === 'kitchen') {
         window.location.href = 'kitchen.html';
       } else {
         window.location.href = 'pos.html';
       }
     } else {
-      alert("No staff profile assigned to this mobile number!");
+      alert("No staff profile found for this mobile number! Please ask the restaurant owner to register your account.");
+      await auth.signOut();
     }
-  } catch(err) {
+  } catch (err) {
     alert("Login Failed: Mobile number or password incorrect.");
   } finally {
-    btn.disabled = false; btn.innerText = "Login to Terminal →";
+    btn.disabled = false; 
+    btn.innerText = "Sign In to Terminal →";
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => { initFirebase(); });
+window.addEventListener('DOMContentLoaded', () => {
+  initFirebase();
+});
 </script>
 </body>
 </html>
