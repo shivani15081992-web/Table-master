@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Online Platforms — TableMaster Pro</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-box">
+      <span id="txt-cafe-name">Delivery Partners</span>
+      <div class="role-badge">ONLINE</div>
+    </div>
+    <div class="top-actions">
+      <div class="sync-badge syncing" id="sync-status">🔄 Online</div>
+    </div>
+  </header>
+
+  <main class="main-wrapper">
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>Delivery Channels & Dues</span>
+        <button class="btn-sm-outline" onclick="openAddPlatformModal()">+ Add Partner</button>
+      </div>
+      <div id="platforms-grid" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </main>
+
+  <nav class="bottom-bar">
+    <a href="index.html" class="bar-item">Home</a>
+    <a href="pos.html" class="bar-item">Order</a>
+    <a href="platforms.html" class="bar-item active">Portals</a>
+    <a href="bills.html" class="bar-item">Bills</a>
+    <a href="menu.html" class="bar-item">Menu</a>
+  </nav>
+
+  <!-- MODAL -->
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
+    <div class="sheet-modal">
+      <div class="sheet-head">
+        <div class="sheet-title" id="sheet-title">Delivery Partner</div>
+        <button class="btn-x" onclick="closeSheet()">✕</button>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
+  </div>
+
+<script>
+function renderPlatforms() {
+  const data = window.getData();
+  updateHeaderBrand(data);
+  const container = document.getElementById('platforms-grid');
+  const platforms = data.platforms || [];
+
+  container.innerHTML = platforms.map(p => `
+    <div style="border:1.5px solid var(--border);border-radius:12px;padding:12px;background:#fff;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h4 style="font-size:15px;font-weight:800;">${p.name}</h4>
+          <span style="font-size:11px;color:var(--text-muted);">Commission: <b>${p.commissionRate}%</b></span>
+        </div>
+        <button class="btn-danger" style="padding:4px 8px;font-size:10px;" onclick="deletePlatform('${p.id}')">Remove</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openAddPlatformModal() {
+  const form = `
+    <label>Partner Name</label>
+    <input type="text" id="plt-name" placeholder="Swiggy / Zomato / Direct">
+    <label>Commission Rate (%)</label>
+    <input type="number" id="plt-comm" placeholder="20" step="0.1">
+    <button class="btn-primary" onclick="saveNewPlatform()">Add Partner</button>
+  `;
+  openSheet("Add Delivery Partner", form);
+}
+
+function saveNewPlatform() {
+  const data = window.getData();
+  const name = document.getElementById('plt-name').value.trim();
+  const comm = parseFloat(document.getElementById('plt-comm').value) || 0;
+  if (!name) return;
+  if (!data.platforms) data.platforms = [];
+  data.platforms.push({ id: 'plt_' + Date.now(), name, commissionRate: comm });
+  window.cloudSave(); closeSheet(); renderPlatforms();
+}
+
+function deletePlatform(pId) {
+  const data = window.getData();
+  if (!confirm("Remove partner?")) return;
+  data.platforms = (data.platforms || []).filter(p => p.id !== pId);
+  window.cloudSave(); renderPlatforms();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (initFirebase()) {
+    auth.onAuthStateChanged((user) => {
+      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (cafeId) bindCafeCloudListener(cafeId, renderPlatforms);
+      else window.location.href = 'index.html';
+    });
+  }
+});
+</script>
+</body>
+</html>
