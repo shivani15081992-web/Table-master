@@ -132,32 +132,37 @@
       <div style="font-size:11px; text-transform:uppercase; color:#94a3b8; font-weight:700;" id="txt-today-sales">Today's Total Sales</div>
       <div style="font-size:30px; font-weight:800; color:#38bdf8; margin:4px 0 8px;" id="val-today-sales">₹ 0.00</div>
       <div style="font-size:12px; color:#cbd5e1; display:flex; justify-content:space-between;">
-        <span>Orders: <b id="val-today-orders">0</b></span>
-        <span>Net Profit: <b id="val-today-profit" style="color:#4ade80;">₹ 0.00</b></span>
+        <span><span id="txt-today-orders-label">Orders</span>: <b id="val-today-orders">0</b></span>
+        <span><span id="txt-today-profit-label">Net Profit</span>: <b id="val-today-profit" style="color:#4ade80;">₹ 0.00</b></span>
       </div>
     </div>
 
-    <!-- QUICK TILES -->
-    <div class="quick-grid">
+    <!-- QUICK TILES (INCLUDING DAILY EXPENSES) -->
+    <div class="quick-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
       <a href="pos.html" class="quick-tile">
         <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></div>
-        <div class="tile-title">New Order (POS)</div>
-        <div class="tile-desc">Dine-in / Parcel Billing</div>
+        <div class="tile-title" id="tile-pos-title">New Order (POS)</div>
+        <div class="tile-desc" id="tile-pos-desc">Dine-in / Parcel Billing</div>
       </a>
       <a href="kitchen.html" class="quick-tile amber">
         <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg></div>
-        <div class="tile-title">Kitchen Live</div>
-        <div class="tile-desc"><span id="val-kot-count">0</span> Orders Preparing</div>
+        <div class="tile-title" id="tile-kitchen-title">Kitchen Live</div>
+        <div class="tile-desc"><span id="val-kot-count">0</span> <span id="tile-kitchen-desc">Orders Preparing</span></div>
+      </a>
+      <a href="expenses.html" class="quick-tile" style="border-left-color: #ef4444;">
+        <div class="tile-bubble" style="background:#fef2f2;color:#ef4444;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg></div>
+        <div class="tile-title" id="tile-expense-title">Daily Expenses</div>
+        <div class="tile-desc" id="tile-expense-desc">Log Daily Costs</div>
       </a>
       <a href="reports.html" class="quick-tile emerald">
         <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
-        <div class="tile-title">Profit & Reports</div>
-        <div class="tile-desc">Sales vs Expense Report</div>
+        <div class="tile-title" id="tile-reports-title">Profit & Reports</div>
+        <div class="tile-desc" id="tile-reports-desc">Sales vs Expense Report</div>
       </a>
       <a href="platforms.html" class="quick-tile purple">
         <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg></div>
-        <div class="tile-title">Online Portals</div>
-        <div class="tile-desc">Swiggy & Zomato Ledger</div>
+        <div class="tile-title" id="tile-portals-title">Online Portals</div>
+        <div class="tile-desc" id="tile-portals-desc">Swiggy & Zomato Ledger</div>
       </a>
     </div>
 
@@ -166,8 +171,8 @@
       <div class="tm-card-title">
         <span id="title-floormap">Floor Table Map</span>
         <div style="display:flex;gap:6px;">
-          <button class="btn-sm-outline" style="background:#f3e8ff;color:#8b5cf6;border-color:#ddd6fe;" onclick="showAllTableQRs()">📱 সব QR</button>
-          <button class="btn-sm-outline" style="background:#eff6ff;color:var(--primary);" onclick="openAddTableSheet()">+ Add Table</button>
+          <button class="btn-sm-outline" style="background:#f3e8ff;color:#8b5cf6;border-color:#ddd6fe;" id="btn-all-qr" onclick="showAllTableQRs()">📱 All QR</button>
+          <button class="btn-sm-outline" style="background:#eff6ff;color:var(--primary);" id="btn-add-table" onclick="openAddTableSheet()">+ Add Table</button>
         </div>
       </div>
       <div class="table-grid" id="dashboard-table-grid"></div>
@@ -184,23 +189,23 @@
   <nav class="bottom-bar">
     <a href="index.html" class="bar-item active">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-      <span>Home</span>
+      <span id="nav-home">Home</span>
     </a>
     <a href="pos.html" class="bar-item">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-      <span>Order</span>
+      <span id="nav-order">Order</span>
     </a>
     <a href="kitchen.html" class="bar-item">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
-      <span>Kitchen</span>
+      <span id="nav-kitchen">Kitchen</span>
     </a>
     <a href="bills.html" class="bar-item">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      <span>Bills</span>
+      <span id="nav-bills">Bills</span>
     </a>
     <a href="menu.html" class="bar-item">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-      <span>Menu</span>
+      <span id="nav-menu">Menu</span>
     </a>
   </nav>
 </div>
@@ -299,7 +304,8 @@ async function handleOwnerRegister(e) {
 }
 
 function handleLogout() {
-  if (confirm("Log out from your Cafe?")) {
+  const confirmMsg = currentLang === 'bn' ? "ক্যাফে থেকে লগ আউট করবেন?" : "Log out from your Cafe?";
+  if (confirm(confirmMsg)) {
     sessionStorage.removeItem('tmpro_role_mode');
     sessionStorage.removeItem('tmpro_cafe_id');
     auth.signOut();
@@ -310,8 +316,33 @@ function renderDashboard() {
   const data = window.getData();
   updateHeaderBrand(data);
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
-  document.getElementById('txt-today-sales').innerText = t('todaySales');
-  document.getElementById('title-floormap').innerText = t('floorMap');
+
+  // Dynamic I18N Text Injection
+  const isBn = currentLang === 'bn';
+  document.getElementById('txt-today-sales').innerText = isBn ? "আজকের মোট বিক্রি" : "Today's Total Sales";
+  document.getElementById('txt-today-orders-label').innerText = isBn ? "মোট অর্ডার" : "Orders";
+  document.getElementById('txt-today-profit-label').innerText = isBn ? "লাভ-ক্ষতি" : "Net Profit";
+  
+  document.getElementById('tile-pos-title').innerText = isBn ? "নতুন অর্ডার (POS)" : "New Order (POS)";
+  document.getElementById('tile-pos-desc').innerText = isBn ? "কাস্টমার অর্ডার এন্ট্রি" : "Dine-in / Parcel Billing";
+  document.getElementById('tile-kitchen-title').innerText = isBn ? "কিচেন লাইভ" : "Kitchen Live";
+  document.getElementById('tile-kitchen-desc').innerText = isBn ? "অর্ডার তৈরি হচ্ছে" : "Orders Preparing";
+  document.getElementById('tile-expense-title').innerText = isBn ? "দৈনিক খরচ" : "Daily Expenses";
+  document.getElementById('tile-expense-desc').innerText = isBn ? "খরচের হিসাব রাখুন" : "Log Daily Costs";
+  document.getElementById('tile-reports-title').innerText = isBn ? "লাভ-ক্ষতি ও রিপোর্ট" : "Profit & Reports";
+  document.getElementById('tile-reports-desc').innerText = isBn ? "বিক্রি ও খরচের রিপোর্ট" : "Sales vs Expense Report";
+  document.getElementById('tile-portals-title').innerText = isBn ? "অনলাইন পোর্টাল" : "Online Portals";
+  document.getElementById('tile-portals-desc').innerText = isBn ? "সুইগি ও জোম্যাটো লেজার" : "Swiggy & Zomato Ledger";
+
+  document.getElementById('title-floormap').innerText = isBn ? "ইন্টারেক্টিভ টেবিল ম্যাপ" : "Floor Table Map";
+  document.getElementById('btn-all-qr').innerText = isBn ? "📱 সব QR" : "📱 All QR";
+  document.getElementById('btn-add-table').innerText = isBn ? "+ টেবিল যোগ" : "+ Add Table";
+
+  document.getElementById('nav-home').innerText = isBn ? "হোম" : "Home";
+  document.getElementById('nav-order').innerText = isBn ? "অর্ডার" : "Order";
+  document.getElementById('nav-kitchen').innerText = isBn ? "কিচেন" : "Kitchen";
+  document.getElementById('nav-bills').innerText = isBn ? "বিলস" : "Bills";
+  document.getElementById('nav-menu').innerText = isBn ? "মেনু" : "Menu";
 
   const today = window.todayStr();
   const todayOrders = (data.orders || []).filter(o => o.status === 'completed' && o.date === today);
@@ -325,13 +356,14 @@ function renderDashboard() {
   document.getElementById('val-today-profit').style.color = (sales - expenses) >= 0 ? '#4ade80' : '#f87171';
   document.getElementById('val-kot-count').innerText = activeKOT;
 
+  const seaterLabel = isBn ? "সিটার" : "Seater";
   const grid = document.getElementById('dashboard-table-grid');
   grid.innerHTML = (data.tables || []).map(tData => `
     <div class="table-card ${tData.status}">
       <span class="table-dot"></span>
       <div onclick="window.location.href='pos.html?table=${tData.id}'">
         <div style="font-size:15px;font-weight:800;">${tData.name}</div>
-        <div style="font-size:11px;color:var(--text-muted);">${tData.seats} ${t('seater')}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${tData.seats} ${seaterLabel}</div>
         ${tData.status === 'reserved' && tData.booking ? `
           <div style="font-size:9.5px;color:#7c3aed;font-weight:800;margin-top:3px;background:#ede9fe;padding:2px 4px;border-radius:4px;">
             📅 ${tData.booking.name} (${tData.booking.time})
@@ -348,14 +380,15 @@ function renderDashboard() {
 }
 
 function openAddTableSheet() {
+  const isBn = currentLang === 'bn';
   const form = `
-    <label>Table Name</label>
+    <label>${isBn ? 'টেবিলের নাম' : 'Table Name'}</label>
     <input type="text" id="tbl-in-name" placeholder="e.g. Table 5 / T-05">
-    <label>Seater Capacity</label>
+    <label>${isBn ? 'আসন সংখ্যা' : 'Seater Capacity'}</label>
     <input type="number" id="tbl-in-seats" value="4" min="1">
-    <button class="btn-primary" onclick="saveNewTable()">Save Table</button>
+    <button class="btn-primary" onclick="saveNewTable()">${isBn ? 'টেবিল সেভ করুন' : 'Save Table'}</button>
   `;
-  openSheet("Add New Table", form);
+  openSheet(isBn ? "নতুন টেবিল যোগ করুন" : "Add New Table", form);
 }
 function saveNewTable() {
   const data = window.getData();
@@ -371,15 +404,16 @@ function openEditTableSheet(tableId) {
   const data = window.getData();
   const tbl = (data.tables || []).find(t => t.id === tableId);
   if (!tbl) return;
+  const isBn = currentLang === 'bn';
   const form = `
-    <label>Table Name</label>
+    <label>${isBn ? 'টেবিলের নাম' : 'Table Name'}</label>
     <input type="text" id="tbl-edit-name" value="${tbl.name}">
-    <label>Seater Capacity</label>
+    <label>${isBn ? 'আসন সংখ্যা' : 'Seater Capacity'}</label>
     <input type="number" id="tbl-edit-seats" value="${tbl.seats}" min="1">
-    <button class="btn-primary" onclick="saveEditTable('${tableId}')">Save Changes</button>
-    <button class="btn-danger" style="width:100%;margin-top:8px;padding:9px;" onclick="deleteTable('${tableId}')">Delete Table</button>
+    <button class="btn-primary" onclick="saveEditTable('${tableId}')">${isBn ? 'পরিবর্তন সেভ করুন' : 'Save Changes'}</button>
+    <button class="btn-danger" style="width:100%;margin-top:8px;padding:9px;" onclick="deleteTable('${tableId}')">${isBn ? 'টেবিল ডিলিট করুন' : 'Delete Table'}</button>
   `;
-  openSheet("Edit " + tbl.name, form);
+  openSheet((isBn ? "এডিট " : "Edit ") + tbl.name, form);
 }
 function saveEditTable(tableId) {
   const data = window.getData();
@@ -390,8 +424,9 @@ function saveEditTable(tableId) {
   window.cloudSave(); closeSheet(); renderDashboard();
 }
 function deleteTable(tableId) {
+  const isBn = currentLang === 'bn';
+  if (!confirm(isBn ? "আপনি কি নিশ্চিতভাবে এই টেবিলটি ডিলিট করতে চান?" : "Are you sure you want to delete this table?")) return;
   const data = window.getData();
-  if (!confirm("Are you sure you want to delete this table?")) return;
   data.tables = (data.tables || []).filter(t => t.id !== tableId);
   window.cloudSave(); closeSheet(); renderDashboard();
 }
@@ -402,18 +437,19 @@ function openBookingSheet(tableId) {
   if (!tbl) return;
   const b = tbl.booking || {};
   const isBooked = tbl.status === 'reserved';
+  const isBn = currentLang === 'bn';
   const form = `
-    <div style="font-weight:700;margin-bottom:10px;">${tbl.name} (${tbl.seats} Seater)</div>
-    <label>Customer Name</label>
+    <div style="font-weight:700;margin-bottom:10px;">${tbl.name} (${tbl.seats} ${isBn ? 'সিটার' : 'Seater'})</div>
+    <label>${isBn ? 'কাস্টমারের নাম' : 'Customer Name'}</label>
     <input type="text" id="bk-name" value="${b.name || ''}" placeholder="Rahul Sen">
-    <label>Phone Number (10 Digits)</label>
+    <label>${isBn ? 'ফোন নম্বর (১০ ডিজিট)' : 'Phone Number (10 Digits)'}</label>
     <input type="tel" id="bk-phone" pattern="[0-9]{10}" maxlength="10" value="${b.phone || ''}" placeholder="9876543210">
-    <label>Booking Time / Details</label>
+    <label>${isBn ? 'বুকিং সময় ও বিবরণ' : 'Booking Time / Details'}</label>
     <input type="text" id="bk-time" value="${b.time || ''}" placeholder="8:30 PM (4 Persons)">
-    <button class="btn-primary" onclick="saveTableBooking('${tableId}')">Confirm Reservation</button>
-    ${isBooked ? `<button class="btn-danger" style="width:100%;margin-top:8px;padding:9px;" onclick="releaseTableBooking('${tableId}')">Release Booking</button>` : ''}
+    <button class="btn-primary" onclick="saveTableBooking('${tableId}')">${isBn ? 'বুকিং নিশ্চিত করুন' : 'Confirm Reservation'}</button>
+    ${isBooked ? `<button class="btn-danger" style="width:100%;margin-top:8px;padding:9px;" onclick="releaseTableBooking('${tableId}')">${isBn ? 'বুকিং বাতিল / ফ্রি করুন' : 'Release Booking'}</button>` : ''}
   `;
-  openSheet("Reservation — " + tbl.name, form);
+  openSheet((isBn ? "টেবিল বুকিং — " : "Reservation — ") + tbl.name, form);
 }
 function saveTableBooking(tableId) {
   const data = window.getData();
@@ -422,7 +458,7 @@ function saveTableBooking(tableId) {
   const name = document.getElementById('bk-name').value.trim();
   const phone = document.getElementById('bk-phone').value.trim();
   const time = document.getElementById('bk-time').value.trim();
-  if (!name) { alert("Enter Customer Name"); return; }
+  if (!name) { alert(currentLang === 'bn' ? "কাস্টমারের নাম লিখুন" : "Enter Customer Name"); return; }
   tbl.booking = { name, phone, time, date: window.todayStr() };
   tbl.status = 'reserved';
   window.cloudSave(); closeSheet(); renderDashboard();
