@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Online Platforms — TableMaster Pro</title>
+<title>Online Platforms & Dues Ledger — TableMaster Pro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a1a">
 <link rel="stylesheet" href="shared.css">
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
@@ -11,39 +13,118 @@
 <script src="shared.js"></script>
 </head>
 <body>
+  <!-- TOPBAR -->
   <header class="topbar">
     <div class="brand-box">
-      <span id="txt-cafe-name">Delivery Partners</span>
-      <div class="role-badge">ONLINE</div>
+      <div class="brand-icon" id="header-logo-container"></div>
+      <div>
+        <span id="txt-cafe-name">Delivery Portals</span>
+        <div id="active-user-role" class="role-badge">ONLINE</div>
+      </div>
     </div>
     <div class="top-actions">
-      <div class="sync-badge syncing" id="sync-status">🔄 Online</div>
+      <div class="sync-badge syncing" id="sync-status">🔄 Connecting...</div>
+      <button class="lang-toggle-btn" onclick="toggleLanguage(renderPlatforms)">🌐 <span id="lbl-lang">English</span></button>
+      <button class="btn-icon" onclick="handleLogout()" title="Logout" style="color:var(--danger)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
     </div>
   </header>
 
+  <!-- MAIN PLATFORMS WRAPPER -->
   <main class="main-wrapper">
+    <!-- PARTNERS CARD -->
     <div class="tm-card">
       <div class="tm-card-title">
-        <span>Delivery Channels & Dues</span>
-        <button class="btn-sm-outline" onclick="openAddPlatformModal()">+ Add Partner</button>
+        <span>🛵 Online Partners Ledger</span>
+        <button class="btn-sm-outline" style="background:#eff6ff;color:var(--primary);" onclick="openAddPlatformModal()">+ Add Partner</button>
       </div>
-      <div id="platforms-grid" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+      <label>Filter Channel</label>
+      <select id="platform-filter-select" style="margin-bottom:12px;" onchange="selectedPlatformFilter=this.value; renderPlatforms();">
+        <option value="All">-- All Delivery Channels --</option>
+      </select>
+
+      <div id="platforms-summary-grid" style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
+    <!-- ONLINE DELIVERED ORDERS -->
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>📦 Online Orders Delivered</span>
+        <small style="color:var(--text-muted);font-weight:600;" id="online-orders-count">0 Orders</small>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Bill #</th>
+              <th>Date</th>
+              <th>Channel</th>
+              <th>Total</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="online-orders-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SETTLEMENT & PAYOUT LOGS -->
+    <div class="tm-card">
+      <div class="tm-card-title">📜 Settlement & Payout Logs</div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Platform</th>
+              <th>Reference / Note</th>
+              <th>Amount</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="payouts-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FOOTER BRANDING -->
+    <div class="dev-footer">
+      Powered by <b>TableMaster Pro Enterprise Cloud</b><br>
+      Software Developed by: <b>Debapriya Sarkar</b> (9046356631)
     </div>
   </main>
 
+  <!-- BOTTOM NAVIGATION -->
   <nav class="bottom-bar">
-    <a href="index.html" class="bar-item">Home</a>
-    <a href="pos.html" class="bar-item">Order</a>
-    <a href="platforms.html" class="bar-item active">Portals</a>
-    <a href="bills.html" class="bar-item">Bills</a>
-    <a href="menu.html" class="bar-item">Menu</a>
+    <a href="index.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span>Home</span>
+    </a>
+    <a href="pos.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+      <span>Order</span>
+    </a>
+    <a href="kitchen.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+      <span>Kitchen</span>
+    </a>
+    <a href="bills.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <span>Bills</span>
+    </a>
+    <a href="menu.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      <span>Menu</span>
+    </a>
   </nav>
 
-  <!-- MODAL -->
+  <!-- MODAL SHEET -->
   <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
     <div class="sheet-modal">
       <div class="sheet-head">
-        <div class="sheet-title" id="sheet-title">Delivery Partner</div>
+        <div class="sheet-title" id="sheet-title">Platform Ledger Action</div>
         <button class="btn-x" onclick="closeSheet()">✕</button>
       </div>
       <div id="sheet-body"></div>
@@ -51,59 +132,232 @@
   </div>
 
 <script>
+let selectedPlatformFilter = 'All';
+
+function handleLogout() {
+  if (confirm("Log out from Online Portals?")) {
+    sessionStorage.removeItem('tmpro_role_mode');
+    sessionStorage.removeItem('tmpro_cafe_id');
+    auth.signOut().then(() => {
+      window.location.href = 'index.html';
+    });
+  }
+}
+
 function renderPlatforms() {
   const data = window.getData();
   updateHeaderBrand(data);
-  const container = document.getElementById('platforms-grid');
-  const platforms = data.platforms || [];
+  document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  container.innerHTML = platforms.map(p => `
-    <div style="border:1.5px solid var(--border);border-radius:12px;padding:12px;background:#fff;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <h4 style="font-size:15px;font-weight:800;">${p.name}</h4>
-          <span style="font-size:11px;color:var(--text-muted);">Commission: <b>${p.commissionRate}%</b></span>
+  const platforms = data.platforms || [];
+  const orders = (data.orders || []).filter(o => o.status === 'completed');
+  const payouts = data.platformPayouts || [];
+
+  // Update dropdown filter
+  const filterSelect = document.getElementById('platform-filter-select');
+  filterSelect.innerHTML = `<option value="All" ${selectedPlatformFilter==='All'?'selected':''}>-- All Delivery Channels --</option>` +
+    platforms.map(p => `<option value="${p.id}" ${selectedPlatformFilter===p.id?'selected':''}>${p.name}</option>`).join('');
+
+  let displayedPlatforms = platforms;
+  if (selectedPlatformFilter !== 'All') {
+    displayedPlatforms = platforms.filter(p => p.id === selectedPlatformFilter);
+  }
+
+  // Calculate platform financial stats
+  const stats = displayedPlatforms.map(p => {
+    const pOrders = orders.filter(o => o.tableId === p.id || o.tableId === 'platform_' + p.id);
+    const grossSales = pOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const commissionAmt = grossSales * ((p.commissionRate || 0) / 100);
+    const netReceivable = grossSales - commissionAmt;
+    const totalReceived = payouts.filter(pay => pay.platformId === p.id).reduce((sum, pay) => sum + (pay.amount || 0), 0);
+    const pendingDue = netReceivable - totalReceived;
+    return { ...p, grossSales, commissionAmt, netReceivable, totalReceived, pendingDue, orderCount: pOrders.length };
+  });
+
+  const summaryGrid = document.getElementById('platforms-summary-grid');
+  if (stats.length === 0) {
+    summaryGrid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">No online delivery partners configured.</div>';
+  } else {
+    summaryGrid.innerHTML = stats.map(s => `
+      <div style="border:1.5px solid var(--border);border-radius:12px;padding:14px;background:#fff;box-shadow:var(--shadow-sm);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div>
+            <h4 style="font-size:16px;font-weight:800;color:#0f172a;">${s.name}</h4>
+            <span style="font-size:11.5px;color:var(--text-muted);">Commission: <b>${s.commissionRate}%</b> · Completed: <b>${s.orderCount}</b> orders</span>
+          </div>
+          <button class="btn-sm-outline" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0;" onclick="openRecordPayoutModal('${s.id}', '${s.name}')">+ Receive Settlement</button>
         </div>
-        <button class="btn-danger" style="padding:4px 8px;font-size:10px;" onclick="deletePlatform('${p.id}')">Remove</button>
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:6px;background:#f8fafc;padding:10px;border-radius:8px;margin-bottom:8px;text-align:center;">
+          <div>
+            <div style="font-size:9.5px;color:#64748b;font-weight:700;">TOTAL GROSS</div>
+            <div style="font-size:13.5px;font-weight:800;">₹ ${s.grossSales.toFixed(0)}</div>
+          </div>
+          <div>
+            <div style="font-size:9.5px;color:#64748b;font-weight:700;">RECEIVED</div>
+            <div style="font-size:13.5px;font-weight:800;color:#059669;">₹ ${s.totalReceived.toFixed(0)}</div>
+          </div>
+          <div>
+            <div style="font-size:9.5px;color:#64748b;font-weight:700;">PENDING DUE</div>
+            <div style="font-size:13.5px;font-weight:800;color:${s.pendingDue > 0 ? '#dc2626' : '#059669'};">₹ ${s.pendingDue.toFixed(0)}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <button class="btn-danger" style="padding:3px 8px;font-size:10px;" onclick="deletePlatformPartner('${s.id}')">Remove Partner</button>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
+  }
+
+  // Online orders list
+  let filteredOnlineOrders = orders.filter(o => o.tableId && (o.tableId.startsWith('plt_') || o.tableId.startsWith('platform_')));
+  if (selectedPlatformFilter !== 'All') {
+    filteredOnlineOrders = filteredOnlineOrders.filter(o => o.tableId === selectedPlatformFilter || o.tableId === 'platform_' + selectedPlatformFilter);
+  }
+  filteredOnlineOrders.sort((a,b) => (b.kotNo||0) - (a.kotNo||0));
+  document.getElementById('online-orders-count').innerText = `${filteredOnlineOrders.length} Orders`;
+
+  const ordersTbody = document.getElementById('online-orders-table-body');
+  if (filteredOnlineOrders.length === 0) {
+    ordersTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;">No online orders found for this filter.</td></tr>';
+  } else {
+    ordersTbody.innerHTML = filteredOnlineOrders.slice(0, 15).map(o => {
+      const pId = o.tableId.replace('platform_', '');
+      const p = platforms.find(x => x.id === pId || x.id === o.tableId);
+      return `
+        <tr>
+          <td><b>#${o.billNo}</b></td>
+          <td>${o.date || ''}</td>
+          <td>${p ? p.name : 'Online Channel'}</td>
+          <td style="font-weight:700;">₹ ${(o.total||0).toFixed(2)}</td>
+          <td><span class="badge cat-sal">PAID</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Settlement Logs
+  const payoutsTbody = document.getElementById('payouts-table-body');
+  let filteredPayouts = payouts;
+  if (selectedPlatformFilter !== 'All') {
+    filteredPayouts = payouts.filter(pay => pay.platformId === selectedPlatformFilter);
+  }
+  if (filteredPayouts.length === 0) {
+    payoutsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;">No settlement records found.</td></tr>';
+  } else {
+    payoutsTbody.innerHTML = filteredPayouts.map(p => `
+      <tr>
+        <td><b>${p.date}</b></td>
+        <td>${p.platformName}</td>
+        <td>${p.note || 'Settlement'}</td>
+        <td style="color:#059669;font-weight:800;">₹ ${(p.amount||0).toFixed(2)}</td>
+        <td>
+          <button class="btn-danger" style="padding:2px 6px;font-size:10px;" onclick="deletePayoutRecord('${p.id}')">✕</button>
+        </td>
+      </tr>
+    `).join('');
+  }
 }
 
 function openAddPlatformModal() {
   const form = `
-    <label>Partner Name</label>
-    <input type="text" id="plt-name" placeholder="Swiggy / Zomato / Direct">
-    <label>Commission Rate (%)</label>
-    <input type="number" id="plt-comm" placeholder="20" step="0.1">
-    <button class="btn-primary" onclick="saveNewPlatform()">Add Partner</button>
+    <label>Platform Name</label>
+    <input type="text" id="plt-name" placeholder="e.g. Swiggy, Zomato, Direct Delivery">
+
+    <label>Commission Percentage (%)</label>
+    <input type="number" id="plt-comm" placeholder="e.g. 20" step="0.1">
+
+    <button class="btn-primary" onclick="saveNewPlatformPartner()">Save Partner</button>
   `;
   openSheet("Add Delivery Partner", form);
 }
 
-function saveNewPlatform() {
+function saveNewPlatformPartner() {
   const data = window.getData();
   const name = document.getElementById('plt-name').value.trim();
   const comm = parseFloat(document.getElementById('plt-comm').value) || 0;
-  if (!name) return;
+
+  if (!name) {
+    alert("Please enter a valid platform name!");
+    return;
+  }
+
   if (!data.platforms) data.platforms = [];
-  data.platforms.push({ id: 'plt_' + Date.now(), name, commissionRate: comm });
-  window.cloudSave(); closeSheet(); renderPlatforms();
+  data.platforms.push({
+    id: 'plt_' + Date.now(),
+    name: name,
+    commissionRate: comm
+  });
+
+  window.cloudSave();
+  closeSheet();
+  renderPlatforms();
 }
 
-function deletePlatform(pId) {
+function deletePlatformPartner(pId) {
   const data = window.getData();
-  if (!confirm("Remove partner?")) return;
+  if (!confirm("Are you sure you want to remove this delivery partner?")) return;
   data.platforms = (data.platforms || []).filter(p => p.id !== pId);
-  window.cloudSave(); renderPlatforms();
+  window.cloudSave();
+  renderPlatforms();
+}
+
+function openRecordPayoutModal(pId, pName) {
+  const form = `
+    <div style="font-weight:700;margin-bottom:10px;">Platform: ${pName}</div>
+    
+    <label>Settlement Amount Received (₹)</label>
+    <input type="number" id="pay-amt" placeholder="e.g. 5000" step="0.01">
+
+    <label>Reference / Note (UTR / Bank details)</label>
+    <input type="text" id="pay-note" placeholder="e.g. Weekly settlement via HDFC">
+
+    <button class="btn-primary" onclick="savePlatformSettlement('${pId}', '${pName}')">Save Settlement Log</button>
+  `;
+  openSheet("Record Settlement Payout", form);
+}
+
+function savePlatformSettlement(pId, pName) {
+  const data = window.getData();
+  const amt = parseFloat(document.getElementById('pay-amt').value);
+  const note = document.getElementById('pay-note').value.trim();
+
+  if (!amt || isNaN(amt) || amt <= 0) {
+    alert("Please enter a valid settlement amount!");
+    return;
+  }
+
+  if (!data.platformPayouts) data.platformPayouts = [];
+  data.platformPayouts.unshift({
+    id: 'payout_' + Date.now(),
+    platformId: pId,
+    platformName: pName,
+    amount: amt,
+    note: note,
+    date: window.todayStr()
+  });
+
+  window.cloudSave();
+  closeSheet();
+  renderPlatforms();
+}
+
+function deletePayoutRecord(id) {
+  const data = window.getData();
+  if (!confirm("Delete this settlement payout log?")) return;
+  data.platformPayouts = (data.platformPayouts || []).filter(p => p.id !== id);
+  window.cloudSave();
+  renderPlatforms();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
       let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) bindCafeCloudListener(cafeId, renderPlatforms);
-      else window.location.href = 'index.html';
+      if (cafeId) {
+        bindCafeCloudListener(cafeId, renderPlatforms);
+      } else {
+        window.location.href = 'index.html';
+      }
     });
   }
 });
