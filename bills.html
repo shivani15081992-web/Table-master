@@ -41,9 +41,10 @@
       </div>
 
       <!-- FILTER BAR -->
-      <div class="filter-bar" style="display:flex;gap:6px;margin-bottom:12px;">
+      <div class="filter-bar" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;">
         <button class="btn-sm-outline active" id="chip-today" onclick="setBillFilter('today')">Today</button>
         <button class="btn-sm-outline" id="chip-unpaid" onclick="setBillFilter('unpaid')">Unpaid Only</button>
+        <button class="btn-sm-outline" id="chip-ready" onclick="setBillFilter('ready')">Ready to Settle</button>
         <button class="btn-sm-outline" id="chip-all" onclick="setBillFilter('all')">All Time</button>
       </div>
 
@@ -107,6 +108,7 @@ function setBillFilter(filter) {
   currentBillFilter = filter;
   document.getElementById('chip-today').classList.toggle('active', filter === 'today');
   document.getElementById('chip-unpaid').classList.toggle('active', filter === 'unpaid');
+  document.getElementById('chip-ready').classList.toggle('active', filter === 'ready');
   document.getElementById('chip-all').classList.toggle('active', filter === 'all');
   renderBills();
 }
@@ -121,6 +123,19 @@ function getChannelName(tId, data) {
   return tbl ? '🪑 ' + tbl.name : 'Channel: ' + tId;
 }
 
+function getStatusBadge(status) {
+  if (status === 'completed') {
+    return '<span class="badge cat-sal">PAID ✓</span>';
+  }
+  if (status === 'served') {
+    return '<span class="badge" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;">FOOD SERVED</span>';
+  }
+  if (status === 'ready_to_serve') {
+    return '<span class="badge" style="background:#ffedd5;color:#c2410c;border:1px solid #fdba74;">AWAITING SERVE</span>';
+  }
+  return '<span class="badge" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;">COOKING (KOT)</span>';
+}
+
 function renderBills() {
   const data = window.getData();
   updateHeaderBrand(data);
@@ -133,34 +148,43 @@ function renderBills() {
     orders = orders.filter(o => o.date === today);
   } else if (currentBillFilter === 'unpaid') {
     orders = orders.filter(o => o.status !== 'completed');
+  } else if (currentBillFilter === 'ready') {
+    orders = orders.filter(o => o.status === 'served');
   }
 
   document.getElementById('bills-count-info').innerText = `${orders.length} Bills`;
   const container = document.getElementById('bills-ledger-list');
 
   if (orders.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">No bills found for this filter.</div>';
+    container.innerHTML = '<div style="text-align:center;padding:28px 16px;color:var(--text-muted);font-weight:600;">No bills found for this filter.</div>';
     return;
   }
 
   container.innerHTML = orders.map(o => {
     const isSettled = o.status === 'completed';
+    const isServed = o.status === 'served';
+    const isTakeawayOrOnline = o.tableId === 'takeaway' || (o.tableId && o.tableId.startsWith('plt_'));
+
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:var(--shadow-sm);">
         <div style="flex:1;">
           <div style="font-weight:700;">#Bill-${o.billNo} — ${getChannelName(o.tableId, data)}
-            <span class="badge ${isSettled ? 'cat-sal' : 'cat-raw'}" style="margin-left:4px;">${isSettled ? 'PAID' : 'PENDING'}</span>
-            ${o.source === 'customer_qr' ? '<span class="badge" style="background:#fef3c7;color:#b45309;margin-left:2px;">📱 QR</span>' : ''}
+            ${getStatusBadge(o.status)}
+            ${o.source === 'customer_qr' ? '<span class="badge" style="background:#ede9fe;color:#6d28d9;margin-left:2px;">📱 QR</span>' : ''}
           </div>
           <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">
             📅 ${o.date} ${o.time || ''} · ${(o.items||[]).length} items · <b>₹ ${(o.total||0).toFixed(2)}</b>
           </div>
         </div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
           <button class="btn-sm-outline" onclick="showReceiptSheet('${o.id}')">Receipt</button>
           ${!isSettled ? `
             <button class="btn-sm-outline" style="background:#fef3c7;color:#b45309;border-color:#fde68a;" onclick="openEditOrderSheet('${o.id}')">✏️ Edit</button>
-            <button class="btn-primary" style="width:auto;padding:5px 10px;font-size:11.5px;" onclick="settleBill('${o.id}')">✓ Settle</button>
+            ${(isServed || isTakeawayOrOnline) ? `
+              <button class="btn-primary" style="width:auto;padding:6px 12px;font-size:11.5px;background:#059669;" onclick="settleBill('${o.id}')">✓ Settle</button>
+            ` : `
+              <button class="btn-sm-outline" style="color:var(--text-muted);font-size:11px;cursor:not-allowed;" title="Wait until food is served at table" disabled>Wait Serve</button>
+            `}
           ` : ''}
         </div>
       </div>
@@ -201,7 +225,7 @@ async function settleBill(orderId) {
 }
 
 /* ==========================================================================
-   EDIT RUNNING ORDER & ATOMIC RE-CALCULATE
+   EDIT RUNNING ORDER & RE-CALCULATE
    ========================================================================== */
 function recalcOrder(o) {
   o.subtotal = o.items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -313,7 +337,7 @@ async function removeItem(orderId, idx) {
 }
 
 /* ==========================================================================
-   THERMAL RECEIPT (WITH UPI QR, GOOGLE REVIEW QR & DEVELOPER BRANDING)
+   THERMAL RECEIPT PRINTING
    ========================================================================== */
 function showReceiptSheet(orderId) {
   const data = window.getData();
@@ -375,7 +399,7 @@ function showReceiptSheet(orderId) {
       ` : ''}
 
       <hr>
-      <!-- DEVELOPER BRANDING & CUSTOM PROMOTION -->
+      <!-- DEVELOPER BRANDING -->
       <div class="receipt-dev">
         Software Developed by: Debapriya Sarkar<br>
         Contact: 9046356631
@@ -400,6 +424,13 @@ function printThermalBill() {
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
+      const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
+      // Restrict Waiters from accessing Billing ledger directly
+      if (role === 'waiter') {
+        window.location.href = 'pos.html';
+        return;
+      }
+
       activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
       if (activeCafeId) {
         bindCafeCloudListener(activeCafeId, renderBills);
