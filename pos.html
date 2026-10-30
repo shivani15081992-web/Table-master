@@ -104,6 +104,7 @@
 let cartState = { tableId: '', items: [] };
 let posCategory = 'All';
 let posSearch = '';
+let activeCafeId = '';
 
 function handleLogout() {
   if (confirm("Log out from POS Terminal?")) {
@@ -120,7 +121,7 @@ function renderPOS() {
   updateHeaderBrand(data);
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  // Table selector options
+  // Table options
   const optTables = document.getElementById('opt-tables');
   optTables.innerHTML = (data.tables || []).map(tData => `
     <option value="${tData.id}" ${cartState.tableId === tData.id ? 'selected':''}>
@@ -128,21 +129,21 @@ function renderPOS() {
     </option>
   `).join('');
 
-  // Check active running order
+  // Check active order
   const activeOrder = (data.orders || []).find(o => o.tableId === cartState.tableId && o.status !== 'completed');
   document.getElementById('active-order-alert').style.display = activeOrder ? 'block' : 'none';
 
   // Category Tabs
-  const cats = ['All', ...new Set((data.menu || []).map(m => m.category))];
+  const cats = ['All', ...new Set((data.menu || []).map(m => m.category || 'General'))];
   document.getElementById('cat-tabs').innerHTML = cats.map(c => `
     <button class="cat-btn ${posCategory === c ? 'active':''}" onclick="posCategory='${c}'; renderPOS();">${c}</button>
   `).join('');
 
   // Dishes grid
-  let dishes = posCategory === 'All' ? (data.menu || []) : (data.menu || []).filter(m => m.category === posCategory);
+  let dishes = posCategory === 'All' ? (data.menu || []) : (data.menu || []).filter(m => (m.category || 'General') === posCategory);
   if (posSearch.trim()) {
     const q = posSearch.toLowerCase();
-    dishes = dishes.filter(d => d.name.toLowerCase().includes(q) || (d.category || '').toLowerCase().includes(q));
+    dishes = dishes.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.category && d.category.toLowerCase().includes(q)));
   }
 
   document.getElementById('dish-grid-box').innerHTML = dishes.map(d => `
@@ -218,7 +219,7 @@ function openCartConfirmation() {
     <div style="display:flex;justify-content:space-between;font-weight:800;font-size:15px;margin-top:6px;margin-bottom:12px;border-top:1px dashed var(--border);padding-top:6px;">
       <span>Total:</span><span>₹ ${total.toFixed(2)}</span>
     </div>
-    <button class="btn-primary" onclick="dispatchOrderToKitchen()">Confirm & Send KOT to Kitchen</button>
+    <button class="btn-primary" id="btn-dispatch-order" onclick="dispatchOrderToKitchen()">Confirm & Send KOT to Kitchen</button>
   `;
   openSheet("Confirm Order", body);
 }
@@ -231,57 +232,80 @@ function changePOSQty(idx, delta) {
   renderPOS();
 }
 
-function dispatchOrderToKitchen() {
-  const data = window.getData();
-  if (!data.orders) data.orders = [];
+/* ==========================================================================
+   ATOMIC KOT DISPATCH (কিচেন থেকে অর্ডার উধাও হওয়া বন্ধের সমাধান)
+   ========================================================================== */
+async function dispatchOrderToKitchen() {
+  if (cartState.items.length === 0 || !activeCafeId || !db) return;
+  const btn = document.getElementById('btn-dispatch-order');
+  if (btn) { btn.disabled = true; btn.innerText = "Sending to Kitchen..."; }
 
-  const subtotal = cartState.items.reduce((s, i) => s + (i.price * i.qty), 0);
-  const gstRate = parseFloat(data.gstRate) || 0;
-  const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
-  const total = subtotal + gst;
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) throw new Error("Cafe data not found!");
 
-  const existingOrder = data.orders.find(o => o.tableId === cartState.tableId && o.status !== 'completed');
+    const cData = docSnap.data();
+    if (!cData.orders) cData.orders = [];
+    if (!cData.tables) cData.tables = [];
 
-  if (existingOrder) {
-    existingOrder.items.forEach(it => it.isAddOn = false);
-    cartState.items.forEach(newItem => {
-      const match = existingOrder.items.find(i => i.dishId === newItem.dishId);
-      if (match) {
-        match.qty += newItem.qty;
-        match.isAddOn = true;
-      } else {
-        existingOrder.items.push({ ...newItem, isAddOn: true });
-      }
+    const subtotal = cartState.items.reduce((s, i) => s + (i.price * i.qty), 0);
+    const gstRate = parseFloat(cData.gstRate) || 0;
+    const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
+    const total = subtotal + gst;
+
+    const existingOrder = cData.orders.find(o => o.tableId === cartState.tableId && o.status !== 'completed');
+
+    if (existingOrder) {
+      existingOrder.items.forEach(it => it.isAddOn = false);
+      cartState.items.forEach(newItem => {
+        const match = existingOrder.items.find(i => i.dishId === newItem.dishId);
+        if (match) {
+          match.qty += newItem.qty;
+          match.isAddOn = true;
+        } else {
+          existingOrder.items.push({ ...newItem, isAddOn: true });
+        }
+      });
+      existingOrder.subtotal = existingOrder.items.reduce((s, i) => s + (i.price * i.qty), 0);
+      existingOrder.gst = gstRate > 0 ? (existingOrder.subtotal * (gstRate / 100)) : 0;
+      existingOrder.total = existingOrder.subtotal + existingOrder.gst;
+      existingOrder.status = 'preparing';
+    } else {
+      const orderNum = 100 + cData.orders.length + 1;
+      cData.orders.push({
+        id: 'ord_' + Date.now(),
+        kotNo: orderNum,
+        billNo: orderNum,
+        tableId: cartState.tableId,
+        items: cartState.items.map(it => ({ ...it, isAddOn: true })),
+        subtotal,
+        gst,
+        gstRate,
+        total,
+        status: 'preparing',
+        source: 'direct_pos',
+        date: window.todayStr(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+    }
+
+    const tbl = cData.tables.find(t => t.id === cartState.tableId);
+    if (tbl) tbl.status = 'occupied';
+
+    // শুধুমাত্র orders ও tables আপডেট করা হচ্ছে যাতে কোনো ব্যাকগ্রাউন্ড ক্যাশ কনফ্লিক্ট না হয়
+    await cafeRef.update({
+      orders: cData.orders,
+      tables: cData.tables
     });
-    existingOrder.subtotal = existingOrder.items.reduce((s, i) => s + (i.price * i.qty), 0);
-    existingOrder.gst = gstRate > 0 ? (existingOrder.subtotal * (gstRate / 100)) : 0;
-    existingOrder.total = existingOrder.subtotal + existingOrder.gst;
-    existingOrder.status = 'preparing';
-  } else {
-    const orderNum = 100 + data.orders.length + 1;
-    data.orders.push({
-      id: 'ord_' + Date.now(),
-      kotNo: orderNum,
-      billNo: orderNum,
-      tableId: cartState.tableId,
-      items: cartState.items.map(it => ({ ...it, isAddOn: true })),
-      subtotal,
-      gst,
-      gstRate,
-      total,
-      status: 'preparing',
-      date: window.todayStr(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
+
+    cartState = { tableId: '', items: [] };
+    closeSheet();
+    window.location.href = 'kitchen.html';
+  } catch (err) {
+    alert("Error sending order to kitchen: " + err.message);
+    if (btn) { btn.disabled = false; btn.innerText = "Confirm & Send KOT to Kitchen"; }
   }
-
-  const tbl = (data.tables || []).find(t => t.id === cartState.tableId);
-  if (tbl) tbl.status = 'occupied';
-
-  window.cloudSave();
-  cartState = { tableId: '', items: [] };
-  closeSheet();
-  window.location.href = 'kitchen.html';
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -290,9 +314,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (urlParams.get('table')) cartState.tableId = urlParams.get('table');
 
     auth.onAuthStateChanged((user) => {
-      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) {
-        bindCafeCloudListener(cafeId, renderPOS);
+      activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (activeCafeId) {
+        bindCafeCloudListener(activeCafeId, renderPOS);
       } else {
         window.location.href = 'index.html';
       }
