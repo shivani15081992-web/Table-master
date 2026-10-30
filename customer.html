@@ -8,35 +8,74 @@
 <meta name="theme-color" content="#1a1a1a">
 <link rel="stylesheet" href="shared.css">
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
 <script src="shared.js"></script>
+<style>
+/* Instant Load & Customer Polish */
+.customer-hero {
+  background: radial-gradient(circle at 15% 10%, rgba(201,169,97,0.15) 0%, transparent 45%),
+    linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #fff;
+  padding: 24px 16px 20px;
+  padding-top: calc(24px + env(safe-area-inset-top));
+  text-align: center;
+  position: sticky; top: 0; z-index: 50;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.customer-logo-circle {
+  width: 56px; height: 56px; margin: 0 auto 10px;
+  border-radius: 50%; overflow: hidden;
+  border: 1.5px solid rgba(201,169,97,0.5);
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+}
+.customer-cafe-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px; font-weight: 700;
+  color: #e8d5a1; line-height: 1.2;
+}
+.customer-table-badge {
+  display: inline-block; padding: 4px 14px;
+  border: 1px solid rgba(201,169,97,0.4);
+  border-radius: 100px;
+  font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #e8d5a1; font-weight: 700; margin-top: 6px;
+}
+</style>
 </head>
 <body class="customer-mode" style="background:var(--cream);">
+
   <!-- CUSTOMER HERO HEADER -->
   <header class="customer-hero">
-    <div class="customer-logo-circle" id="customer-logo-wrap"></div>
-    <h1 class="customer-cafe-name" id="cust-cafe-name">Restaurant</h1>
-    <div class="customer-divider"><span></span><i>◆</i><span></span></div>
-    <div class="customer-table-badge" id="cust-table-badge">WELCOME</div>
+    <div class="customer-logo-circle" id="customer-logo-wrap">
+      <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>" style="width:100%;height:100%;object-fit:cover;" alt="Logo">
+    </div>
+    <h1 class="customer-cafe-name" id="cust-cafe-name">Loading Restaurant...</h1>
+    <div class="customer-divider" style="display:flex;align-items:center;gap:10px;margin:8px auto;max-width:160px;color:#c9a961;font-size:8px;">
+      <span style="flex:1;height:1px;background:rgba(201,169,97,0.4);"></span><i>◆</i><span style="flex:1;height:1px;background:rgba(201,169,97,0.4);"></span>
+    </div>
+    <div class="customer-table-badge" id="cust-table-badge">TABLE MENU</div>
   </header>
 
   <!-- MAIN CUSTOMER MENU AREA -->
-  <main class="customer-main" id="cust-menu-area">
-    <!-- LOADING SPINNER -->
-    <div class="customer-loading-wrap" id="cust-loading">
-      <div class="customer-loading-spinner"></div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#6b5540;">Loading Menu...</div>
+  <main class="customer-main" id="cust-menu-area" style="padding:14px;padding-bottom:110px;max-width:800px;margin:0 auto;">
+    
+    <!-- LOADING SPINNER (AUTO HIDES) -->
+    <div class="customer-loading-wrap" id="cust-loading" style="text-align:center;padding:50px 20px;">
+      <div class="customer-loading-spinner" style="width:40px;height:40px;margin:0 auto 14px;border:3px solid #ebe3d2;border-top-color:#c9a961;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:#6b5540;font-weight:600;">খাবার মেনু লোড হচ্ছে...</div>
     </div>
 
     <!-- MENU CONTENT -->
     <div id="cust-menu-content" style="display:none;">
       <!-- SEARCH INPUT -->
       <div class="customer-search-wrap" style="position:relative;margin-bottom:14px;">
-        <input type="text" class="customer-search-input" id="cust-search" placeholder="Search dishes..." oninput="custSearchQuery=this.value; renderCustomerMenu();" style="width:100%;padding:12px 14px;background:#fff;border:1px solid var(--cream-border);border-radius:100px;font-size:13px;color:#1a1a1a;">
+        <input type="text" class="customer-search-input" id="cust-search" placeholder="🔍 Search dishes..." oninput="custSearchQuery=this.value; renderCustomerMenu();" style="width:100%;padding:11px 14px;background:#fff;border:1px solid var(--cream-border);border-radius:100px;font-size:13.5px;color:#1a1a1a;">
       </div>
 
       <!-- CATEGORY TABS -->
-      <div class="customer-cats-wrap" id="cust-cats-container" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:14px;"></div>
+      <div class="customer-cats-wrap" id="cust-cats-container" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:14px;scrollbar-width:none;"></div>
 
       <!-- DISHES GRID -->
       <div class="customer-dish-grid" id="cust-dish-grid" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
@@ -44,21 +83,21 @@
   </main>
 
   <!-- FLOATING CART BAR -->
-  <div class="customer-cart-bar" id="cust-cart-bar" style="display:none;">
-    <div class="customer-cart">
+  <div class="customer-cart-bar" id="cust-cart-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;padding:12px;background:linear-gradient(180deg, transparent 0%, var(--cream) 40%);">
+    <div class="customer-cart" style="background:linear-gradient(135deg, #1a1a1a, #2d2d2d);color:#fff;border-radius:18px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(201,169,97,0.3);box-shadow:0 12px 28px rgba(0,0,0,0.3);">
       <div>
-        <div class="ccb-label" id="cust-cart-count">0 Items Selected</div>
-        <div class="ccb-price" id="cust-cart-total">₹ 0.00</div>
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#c9a961;" id="cust-cart-count">0 Items Selected</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#e8d5a1;" id="cust-cart-total">₹ 0.00</div>
       </div>
-      <button class="ccb-btn" onclick="openCustCartReviewSheet()">View Order →</button>
+      <button class="ccb-btn" onclick="openCustCartReviewSheet()" style="background:linear-gradient(135deg, #c9a961, #e8d5a1);color:#1a1a1a;border:none;border-radius:12px;padding:9px 18px;font-weight:800;font-size:12px;cursor:pointer;">View Order →</button>
     </div>
   </div>
 
   <!-- MODAL SHEET -->
   <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
     <div class="sheet-modal">
-      <div class="sheet-head">
-        <div class="sheet-title" id="sheet-title" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#1a1a1a;">Review Your Order</div>
+      <div class="sheet-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="sheet-title" id="sheet-title" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#1a1a1a;font-weight:700;">Review Your Order</div>
         <button class="btn-x" onclick="closeSheet()">✕</button>
       </div>
       <div id="sheet-body"></div>
@@ -75,10 +114,9 @@ let custSearchQuery = '';
 function renderCustomerMenu() {
   const data = window.getData();
   
-  // Update Cafe Name
-  document.getElementById('cust-cafe-name').innerText = data.name || 'Restaurant';
+  // রেস্তোরাঁর নাম ও লোগো প্রদর্শন
+  document.getElementById('cust-cafe-name').innerText = data.name || 'TableMaster Restaurant';
 
-  // Smart Logo Handling (Fallback to Golden Vector)
   const logoWrap = document.getElementById('customer-logo-wrap');
   if (data.logo && data.logo.trim() !== '') {
     logoWrap.innerHTML = `<img src="${data.logo}" style="width:100%;height:100%;object-fit:cover;" alt="Logo">`;
@@ -86,29 +124,30 @@ function renderCustomerMenu() {
     logoWrap.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Default Logo">`;
   }
 
-  // Table Badge
+  // টেবিল নাম
   const tbl = (data.tables || []).find(t => t.id === targetTableId);
   document.getElementById('cust-table-badge').innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
 
+  // লোডিং বন্ধ করে মেনু প্রদর্শন
   document.getElementById('cust-loading').style.display = 'none';
   document.getElementById('cust-menu-content').style.display = 'block';
 
-  // Render Category Tabs
-  const cats = ['All', ...new Set((data.menu || []).map(m => m.category))];
+  // ক্যাটাগরি তৈরি
+  const cats = ['All', ...new Set((data.menu || []).map(m => m.category || 'General'))];
   document.getElementById('cust-cats-container').innerHTML = cats.map(c => `
     <button class="customer-cat-btn ${custSelectedCat === c ? 'active' : ''}" onclick="custSelectedCat='${c}'; renderCustomerMenu();">${c}</button>
   `).join('');
 
-  // Filter Dishes
-  let dishes = custSelectedCat === 'All' ? (data.menu || []) : (data.menu || []).filter(m => m.category === custSelectedCat);
+  // ফিল্টার করা মেনু
+  let dishes = custSelectedCat === 'All' ? (data.menu || []) : (data.menu || []).filter(m => (m.category || 'General') === custSelectedCat);
   if (custSearchQuery.trim()) {
     const q = custSearchQuery.toLowerCase();
-    dishes = dishes.filter(d => d.name.toLowerCase().includes(q) || (d.category || '').toLowerCase().includes(q));
+    dishes = dishes.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.category && d.category.toLowerCase().includes(q)));
   }
 
   const grid = document.getElementById('cust-dish-grid');
   if (dishes.length === 0) {
-    grid.innerHTML = '<div style="text-align:center;padding:30px;color:#8b6d38;font-family:\'Cormorant Garamond\',serif;font-size:18px;">No matching items found.</div>';
+    grid.innerHTML = '<div style="text-align:center;padding:30px;color:#8b6d38;font-family:\'Cormorant Garamond\',serif;font-size:18px;">No matching food items found.</div>';
   } else {
     grid.innerHTML = dishes.map(d => `
       <div class="customer-dish-card" onclick="addToCustCart('${d.id}')">
@@ -176,8 +215,8 @@ function openCustCartReviewSheet() {
     `).join('')}
     
     <div style="margin-top:14px;font-size:12.5px;color:#6b5540;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>Subtotal</span><span>₹ ${subtotal.toFixed(2)}</span></div>
-      ${gstRate > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>GST (${gstRate}%)</span><span>₹ ${gst.toFixed(2)}</span></div>` : ''}
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>Subtotal:</span><span>₹ ${subtotal.toFixed(2)}</span></div>
+      ${gstRate > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>GST (${gstRate}%):</span><span>₹ ${gst.toFixed(2)}</span></div>` : ''}
     </div>
     
     <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0;padding-top:12px;border-top:1px dashed var(--cream-border);font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#1a1a1a;">
@@ -210,7 +249,7 @@ async function submitCustomerOrderToKitchen() {
   try {
     const cafeRef = db.collection("cafes").doc(targetCafeId);
     const docSnap = await cafeRef.get();
-    if (!docSnap.exists) throw new Error("Cafe document not found!");
+    if (!docSnap.exists) throw new Error("Cafe data not found!");
 
     const cData = docSnap.data();
     if (!cData.orders) cData.orders = [];
@@ -259,7 +298,6 @@ async function submitCustomerOrderToKitchen() {
     const tbl = cData.tables.find(t => t.id === targetTableId);
     if (tbl) tbl.status = 'occupied';
 
-    // শুধুমাত্র orders ও tables আপডেট করা হচ্ছে যাতে কোনো সেটিংস ডেটা ক্ষতিগ্রস্ত না হয়
     await cafeRef.update({
       orders: cData.orders,
       tables: cData.tables
@@ -269,37 +307,64 @@ async function submitCustomerOrderToKitchen() {
     closeSheet();
     document.getElementById('cust-cart-bar').style.display = 'none';
     document.getElementById('cust-menu-area').innerHTML = `
-      <div class="customer-success">
-        <div class="customer-success-icon">✓</div>
-        <div class="customer-success-title">Order Placed Successfully!</div>
-        <div class="customer-success-text">Your order has been dispatched directly to the kitchen.</div>
-        <div class="customer-success-hint">Food is being prepared, please relax 🍽️</div>
-        <button class="customer-submit-btn" style="margin-top:24px;max-width:260px;" onclick="location.reload()">Order More</button>
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="width:70px;height:70px;background:#10b981;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 18px;">✓</div>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#1a1a1a;margin-bottom:6px;">Order Dispatched to Kitchen!</h2>
+        <p style="color:#6b5540;font-size:13.5px;">Your food is being prepared. Thank you for dining with us! 🍽️</p>
+        <button class="customer-submit-btn" style="margin-top:24px;max-width:240px;" onclick="location.reload()">Order More Items</button>
       </div>
     `;
   } catch (err) {
-    alert("Order placement failed: " + err.message);
+    alert("Order failed: " + err.message);
     if (btn) { btn.disabled = false; btn.innerText = "✓ Confirm & Send Order to Kitchen"; }
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+// ইনস্ট্যান্ট লোডার ও অথেন্টিকেশন বাইপাস
+window.addEventListener('DOMContentLoaded', async () => {
   if (initFirebase()) {
     const params = new URLSearchParams(window.location.search);
     targetCafeId = params.get('cafe');
     targetTableId = params.get('table');
 
-    if (targetCafeId) {
-      bindCafeCloudListener(targetCafeId, renderCustomerMenu);
-    } else {
+    if (!targetCafeId) {
       document.getElementById('cust-loading').innerHTML = `
-        <div class="customer-error-wrap">
-          <div class="customer-error-icon">❌</div>
-          <div class="customer-error-title">Invalid QR Code</div>
-          <div class="customer-error-text">Please scan the table QR code again or contact staff.</div>
-        </div>
+        <div style="font-size:36px;margin-bottom:10px;">⚠️</div>
+        <div style="font-size:16px;font-weight:700;color:#dc2626;">Invalid QR Code</div>
+        <p style="font-size:12px;color:#64748b;margin-top:4px;">Please scan the table QR code again or contact staff.</p>
       `;
+      return;
     }
+
+    // ব্যাকগ্রাউন্ডে সাইন-ইন করে রিয়েলটাইম ডেটা ফেচ
+    try {
+      if (!auth.currentUser) {
+        await auth.signInAnonymously();
+      }
+    } catch(e) {
+      console.warn("Anonymous login skipped:", e);
+    }
+
+    // সরাসরি ফায়ারস্টোর থেকে ডকুমেন্ট রিয়েলটাইম লিসেন
+    db.collection("cafes").doc(targetCafeId).onSnapshot((doc) => {
+      if (doc.exists) {
+        window.RESTAURANT_DATA = doc.data();
+        window.RESTAURANT_DATA.cafeId = targetCafeId;
+        renderCustomerMenu();
+      } else {
+        document.getElementById('cust-loading').innerHTML = '<div style="color:#dc2626;font-weight:700;">Restaurant not found!</div>';
+      }
+    }, (err) => {
+      console.error("Firestore fetch error:", err);
+      // অফলাইন/লিসেনার ফেইল হলে সরাসরি একবার ফেচ করার চেষ্টা
+      db.collection("cafes").doc(targetCafeId).get().then((doc) => {
+        if (doc.exists) {
+          window.RESTAURANT_DATA = doc.data();
+          window.RESTAURANT_DATA.cafeId = targetCafeId;
+          renderCustomerMenu();
+        }
+      });
+    });
   }
 });
 </script>
