@@ -4,8 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>TableMaster Pro — Cloud Restaurant Management</title>
+
+<!-- PWA & Android/iOS Web App Support -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a1a1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TableMaster Pro">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
@@ -42,6 +50,14 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif; -webkit-tap-highlight-color: transparent; }
 body { background: var(--bg); color: var(--text-main); font-size: 14px; min-height: 100dvh; display: flex; flex-direction: column; overflow-x: hidden; }
+
+/* IN-APP PWA INSTALL BANNER */
+.pwa-install-banner { display: none; background: #1a1a1a; color: #fff; padding: 10px 16px; border-bottom: 1.5px solid var(--gold); align-items: center; justify-content: space-between; z-index: 1000; position: sticky; top: 0; }
+.pwa-install-content { display: flex; align-items: center; gap: 10px; }
+.pwa-install-icon { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--gold); display: flex; align-items: center; justify-content: center; background: #2d2d2d; }
+.pwa-install-text { font-size: 12px; }
+.pwa-install-text b { color: var(--gold-light); display: block; font-size: 13px; }
+.pwa-install-btn { background: linear-gradient(135deg, #c9a961, #e8d5a1); color: #1a1a1a; border: none; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 11.5px; cursor: pointer; }
 
 /* AUTH SCREEN */
 .auth-wrap { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(ellipse at top left, #1e293b 0%, #0f172a 60%), #0f172a; }
@@ -182,7 +198,6 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text-mut
 .receipt-paper .c { text-align: center; }
 .receipt-paper .qr-img { width: 100px; height: 100px; display: block; margin: 0 auto; }
 .receipt-logo { max-width: 80px; max-height: 50px; display: block; margin: 0 auto 4px; filter: grayscale(100%); }
-.receipt-dev { text-align: center; font-size: 9px; font-weight: 800; margin-top: 6px; border-top: 1px dotted #000; padding-top: 4px; text-transform: uppercase; }
 
 /* PRINT */
 @media print {
@@ -255,6 +270,20 @@ body.customer-mode { background: var(--cream); }
 </style>
 </head>
 <body>
+
+<!-- IN-APP PWA INSTALL BAR -->
+<div id="pwa-install-banner" class="pwa-install-banner">
+  <div class="pwa-install-content">
+    <div class="pwa-install-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8d5a1" stroke-width="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+    </div>
+    <div class="pwa-install-text">
+      <b>TableMaster Pro</b>
+      <span>Install App on your device</span>
+    </div>
+  </div>
+  <button class="pwa-install-btn" id="btn-pwa-install">Install App</button>
+</div>
 
 <!-- AUTH SCREEN -->
 <div id="auth-screen" class="auth-wrap">
@@ -1632,7 +1661,7 @@ function deleteDish(id) {
 }
 
 /* ==========================================================================
-   TABLE MANAGEMENT & BOOKING (NEW)
+   TABLE MANAGEMENT & BOOKING
    ========================================================================== */
 function openAddTableSheet() {
   const form = `
@@ -1733,7 +1762,7 @@ function releaseTableBooking(tableId) {
 }
 
 /* ==========================================================================
-   EDIT RUNNING ORDER (FULL DYNAMIC TRANSLATION)[span_0](start_span)[span_0](end_span)
+   EDIT RUNNING ORDER
    ========================================================================== */
 function recalcOrderTotals(o) {
   o.subtotal = o.items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -2474,8 +2503,39 @@ async function submitCustomerOrder() {
 }
 
 /* ==========================================================================
-   INITIALIZATION ROUTING & PWA
+   INITIALIZATION & PWA SERVICE WORKER REGISTRATION
    ========================================================================== */
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner && !window.IS_CUSTOMER_MODE) {
+    banner.style.display = 'flex';
+  }
+});
+
+const installBtn = document.getElementById('btn-pwa-install');
+if (installBtn) {
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.style.display = 'none';
+    }
+    deferredPrompt = null;
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.style.display = 'none';
+  deferredPrompt = null;
+});
+
 function routeBasedOnUrl() {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('mode') === 'customer') {
@@ -2485,10 +2545,14 @@ function routeBasedOnUrl() {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('load', () => {
+  // Service Worker Registration for PWA
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration skipped', err));
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker Active with scope:', reg.scope))
+      .catch(err => console.warn('SW registration skipped:', err));
   }
+
   if (initFirebaseApp()) {
     routeBasedOnUrl();
   } else {
