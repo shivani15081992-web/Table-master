@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js"></script>
 <script src="shared.js"></script>
 <style>
 .ready-serve-banner {
@@ -167,7 +168,7 @@ function renderPOS() {
   const readyList = document.getElementById('ready-orders-list');
   const countBadge = document.getElementById('count-ready-orders');
 
-  // খাবার রেডি হলেই ওয়েটারের ফোনে সার্ভিস বেল (Triple Chime) বেজে উঠবে
+  // খাবার রেডি হলেই ওয়েটারের ফোনে সার্ভিস বেল (Triple Chime) বাজবে
   if (lastReadyServeCount !== -1 && readyOrders.length > lastReadyServeCount) {
     window.playAlertTone('ready');
   }
@@ -405,6 +406,8 @@ window.addEventListener('DOMContentLoaded', () => {
       activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
       if (activeCafeId) {
         bindCafeCloudListener(activeCafeId, renderPOS);
+        // ওয়েটারের ফোনে ব্যাকগ্রাউন্ড পুশ পারমিশন সক্রিয় করা
+        window.enableFCMNotifications('waiter');
       } else {
         window.location.href = 'staff.html';
       }
