@@ -1,16 +1,24 @@
 {
-  "id": "tablemaster-pro-v2",
+  "id": "/tablemaster-pwa/",
   "name": "TableMaster Pro",
   "short_name": "TableMaster",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%231a1a1a'/%3E%3Ccircle cx='256' cy='256' r='200' fill='none' stroke='%23c9a961' stroke-width='10'/%3E%3Cpath d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120v0a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30Zm0 0v132' fill='none' stroke='%23e8d5a1' stroke-width='24' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
