@@ -11,6 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js"></script>
 <script src="shared.js"></script>
 <style>
 .landing-banner { 
@@ -53,10 +54,9 @@
 <div id="auth-screen" style="min-height:100dvh;padding:16px;background:radial-gradient(ellipse at top left, #1e293b 0%, #0f172a 60%), #0f172a;display:flex;align-items:center;justify-content:center;">
   <div style="background:#fff;padding:26px 20px;border-radius:20px;width:100%;max-width:480px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
     
-    <!-- MARKETING PRESENTATION BANNER -->
     <div class="landing-banner">
       <h1>TableMaster Pro Enterprise</h1>
-      <p style="font-size:12.5px;line-height:1.5;">The all-in-one Smart Cloud POS & Table Management Software engineered to supercharge modern Cafes & Restaurants.</p>
+      <p style="font-size:12.5px;line-height:1.5;">Smart Cloud POS & Table Management Software engineered to supercharge modern Cafes & Restaurants.</p>
       <div class="feature-list">
         <div class="feature-item">⚡ <b>Direct QR Self-Ordering</b> (Zero Waiter Dependency)</div>
         <div class="feature-item">🍳 <b>Live Kitchen KOT Display</b> (Instant Preparation)</div>
@@ -137,7 +137,7 @@
       </div>
     </div>
 
-    <!-- QUICK TILES (INCLUDING DAILY EXPENSES) -->
+    <!-- QUICK TILES -->
     <div class="quick-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
       <a href="pos.html" class="quick-tile">
         <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></div>
@@ -221,7 +221,6 @@
   </div>
 </div>
 
-<!-- PRINT CONTAINER FOR TABLE QRS -->
 <div id="print-area"></div>
 
 <script>
@@ -242,9 +241,11 @@ async function handleOwnerLogin(e) {
   btn.disabled = true; btn.innerText = "Signing in...";
 
   try {
+    sessionStorage.clear(); // পূর্বের যে কোনো স্টাফ রোল বা সেশন মুছে ফেলা
     const cred = await auth.signInWithEmailAndPassword(email, pass);
     sessionStorage.setItem('tmpro_role_mode', 'owner');
     sessionStorage.setItem('tmpro_cafe_id', 'cafe_' + cred.user.uid);
+    window.CURRENT_USER_ROLE = 'owner';
   } catch (err) {
     alert("Login Failed: " + err.message);
   } finally {
@@ -269,6 +270,7 @@ async function handleOwnerRegister(e) {
 
   btn.disabled = true; btn.innerText = "Registering Cafe...";
   try {
+    sessionStorage.clear();
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     const cafeId = 'cafe_' + cred.user.uid;
     const newCafe = {
@@ -290,11 +292,12 @@ async function handleOwnerRegister(e) {
         { id: 'plt_swiggy', name: 'Swiggy', commissionRate: 20 },
         { id: 'plt_zomato', name: 'Zomato', commissionRate: 22 }
       ],
-      platformPayouts: [], orders: [], expenses: [], staff: []
+      platformPayouts: [], orders: [], expenses: [], staff: [], deviceTokens: []
     };
     await db.collection("cafes").doc(cafeId).set(newCafe);
     sessionStorage.setItem('tmpro_role_mode', 'owner');
     sessionStorage.setItem('tmpro_cafe_id', cafeId);
+    window.CURRENT_USER_ROLE = 'owner';
     alert(`Registration Successful for "${name}"!`);
   } catch(err) {
     alert("Registration Failed: " + err.message);
@@ -306,18 +309,20 @@ async function handleOwnerRegister(e) {
 function handleLogout() {
   const confirmMsg = currentLang === 'bn' ? "ক্যাফে থেকে লগ আউট করবেন?" : "Log out from your Cafe?";
   if (confirm(confirmMsg)) {
-    sessionStorage.removeItem('tmpro_role_mode');
-    sessionStorage.removeItem('tmpro_cafe_id');
-    auth.signOut();
+    sessionStorage.clear();
+    auth.signOut().then(() => {
+      window.location.reload();
+    });
   }
 }
 
 function renderDashboard() {
   const data = window.getData();
+  window.CURRENT_USER_ROLE = 'owner';
+  sessionStorage.setItem('tmpro_role_mode', 'owner');
   updateHeaderBrand(data);
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  // Dynamic I18N Text Injection
   const isBn = currentLang === 'bn';
   document.getElementById('txt-today-sales').innerText = isBn ? "আজকের মোট বিক্রি" : "Today's Total Sales";
   document.getElementById('txt-today-orders-label').innerText = isBn ? "মোট অর্ডার" : "Orders";
@@ -475,11 +480,17 @@ window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
       if (user && !user.isAnonymous) {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('app-container').style.display = 'block';
+        // ওনার লগইন কনফার্মেশন
         const cafeId = 'cafe_' + user.uid;
         sessionStorage.setItem('tmpro_cafe_id', cafeId);
+        sessionStorage.setItem('tmpro_role_mode', 'owner');
+        window.CURRENT_USER_ROLE = 'owner';
+
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
+
         bindCafeCloudListener(cafeId, renderDashboard);
+        window.enableFCMNotifications('owner');
       } else {
         document.getElementById('auth-screen').style.display = 'flex';
         document.getElementById('app-container').style.display = 'none';
