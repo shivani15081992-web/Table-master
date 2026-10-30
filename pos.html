@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>POS Order Terminal — TableMaster Pro</title>
+<title>Waiter Terminal — TableMaster Pro</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a1a1a">
 <link rel="stylesheet" href="shared.css">
@@ -11,6 +11,26 @@
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
 <script src="shared.js"></script>
+<style>
+.ready-serve-banner {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1.5px solid #f59e0b;
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.ready-order-item {
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #fcd34d;
+}
+</style>
 </head>
 <body>
   <!-- TOPBAR -->
@@ -18,8 +38,8 @@
     <div class="brand-box">
       <div class="brand-icon" id="header-logo-container"></div>
       <div>
-        <span id="txt-cafe-name">TableMaster POS</span>
-        <div id="active-user-role" class="role-badge">ORDER</div>
+        <span id="txt-cafe-name">Waiter Terminal</span>
+        <div id="active-user-role" class="role-badge" style="background:#dbeafe;color:#1e40af;">WAITER</div>
       </div>
     </div>
     <div class="top-actions">
@@ -33,23 +53,32 @@
 
   <!-- MAIN TERMINAL WRAPPER -->
   <main class="main-wrapper">
+    
+    <!-- LIVE WAITER SERVING NOTIFICATION BOX -->
+    <div class="ready-serve-banner" id="box-ready-serving" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:800;color:#92400e;font-size:13px;">🛎️ Food Prepared — Serve to Table</span>
+        <span class="badge" style="background:#f59e0b;color:#fff;" id="count-ready-orders">0 Ready</span>
+      </div>
+      <div id="ready-orders-list"></div>
+    </div>
+
+    <!-- ORDER TAKING CARD -->
     <div class="tm-card">
-      <label>Select Table / Channel</label>
+      <label>Select Floor Table / Channel</label>
       <select id="pos-table-select" onchange="cartState.tableId=this.value; renderPOS();">
-        <option value="">-- Choose Channel --</option>
+        <option value="">-- Choose Channel / Table --</option>
         <optgroup label="🪑 Floor Tables" id="opt-tables"></optgroup>
-        <optgroup label="🛵 Delivery / Parcel">
-          <option value="takeaway">🛍️ Direct Takeaway / Parcel</option>
-          <option value="plt_swiggy">🛵 Swiggy Online</option>
-          <option value="plt_zomato">🛵 Zomato Online</option>
+        <optgroup label="🛍️ Parcel / Takeaway">
+          <option value="takeaway">Direct Takeaway / Parcel</option>
         </optgroup>
       </select>
 
       <div id="active-order-alert" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px;margin-bottom:10px;font-size:12px;color:#1e40af;">
-        ℹ️ Active order running on this channel. New items will be added to running bill.
+        ℹ️ Active order running on this table. Additional items will add to existing KOT.
       </div>
 
-      <input type="text" id="pos-search-input" placeholder="🔍 Search menu item or category..." oninput="posSearch=this.value; renderPOS();">
+      <input type="text" id="pos-search-input" placeholder="🔍 Search menu item..." oninput="posSearch=this.value; renderPOS();">
 
       <div class="cat-scroll" id="cat-tabs"></div>
       <div class="dish-grid" id="dish-grid-box"></div>
@@ -65,29 +94,8 @@
     <button class="btn-place" onclick="openCartConfirmation()">Send KOT to Kitchen →</button>
   </div>
 
-  <!-- BOTTOM NAVIGATION -->
-  <nav class="bottom-bar">
-    <a href="index.html" class="bar-item">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-      <span>Home</span>
-    </a>
-    <a href="pos.html" class="bar-item active">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-      <span>Order</span>
-    </a>
-    <a href="kitchen.html" class="bar-item">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
-      <span>Kitchen</span>
-    </a>
-    <a href="bills.html" class="bar-item">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      <span>Bills</span>
-    </a>
-    <a href="menu.html" class="bar-item">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-      <span>Menu</span>
-    </a>
-  </nav>
+  <!-- NAVIGATION BAR (RESTRICTED DYNAMICALLY BASED ON ROLE) -->
+  <nav class="bottom-bar" id="waiter-dynamic-nav"></nav>
 
   <!-- MODAL SHEET -->
   <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
@@ -107,21 +115,80 @@ let posSearch = '';
 let activeCafeId = '';
 
 function handleLogout() {
-  if (confirm("Log out from POS Terminal?")) {
+  const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
+  if (confirm("Log out from Waiter Terminal?")) {
     sessionStorage.removeItem('tmpro_role_mode');
     sessionStorage.removeItem('tmpro_cafe_id');
     auth.signOut().then(() => {
-      window.location.href = 'index.html';
+      window.location.href = (role === 'owner') ? 'index.html' : 'staff.html';
     });
+  }
+}
+
+function getChannelName(tId, data) {
+  if (tId === 'takeaway') return '🛍️ Parcel / Takeaway';
+  const tbl = (data.tables || []).find(t => t.id === tId);
+  return tbl ? '🪑 ' + tbl.name : 'Channel: ' + tId;
+}
+
+function setupRoleNavigation() {
+  const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
+  const nav = document.getElementById('waiter-dynamic-nav');
+  
+  if (role === 'waiter') {
+    // Waiter has ZERO access to Reports, Expenses, Platforms, or Settings
+    nav.innerHTML = `
+      <a href="pos.html" class="bar-item active">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+        <span>Waiter POS</span>
+      </a>
+    `;
+    document.getElementById('active-user-role').innerText = "WAITER";
+  } else {
+    // Owner gets full navigation
+    nav.innerHTML = `
+      <a href="index.html" class="bar-item"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg><span>Home</span></a>
+      <a href="pos.html" class="bar-item active"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg><span>Order</span></a>
+      <a href="kitchen.html" class="bar-item"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg><span>Kitchen</span></a>
+      <a href="bills.html" class="bar-item"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><span>Bills</span></a>
+      <a href="menu.html" class="bar-item"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg><span>Menu</span></a>
+    `;
   }
 }
 
 function renderPOS() {
   const data = window.getData();
   updateHeaderBrand(data);
+  setupRoleNavigation();
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  // Table options
+  // 1. Check Orders that are READY TO SERVE from Kitchen
+  const readyOrders = (data.orders || []).filter(o => o.status === 'ready_to_serve');
+  const readyBanner = document.getElementById('box-ready-serving');
+  const readyList = document.getElementById('ready-orders-list');
+  const countBadge = document.getElementById('count-ready-orders');
+
+  if (readyOrders.length > 0) {
+    readyBanner.style.display = 'block';
+    countBadge.innerText = `${readyOrders.length} Ready`;
+    readyList.innerHTML = readyOrders.map(o => `
+      <div class="ready-order-item">
+        <div>
+          <b style="color:#0f172a;font-size:14px;">${getChannelName(o.tableId, data)}</b>
+          <div style="font-size:11.5px;color:#64748b;margin-top:2px;">
+            KOT #${o.kotNo} (${(o.items||[]).length} dishes prepared)
+          </div>
+        </div>
+        <button class="btn-primary" style="width:auto;padding:7px 14px;font-size:12px;background:#059669;" onclick="confirmFoodServed('${o.id}')">
+          Food Served ✓
+        </button>
+      </div>
+    `).join('');
+  } else {
+    readyBanner.style.display = 'none';
+  }
+
+  // 2. Table Dropdown
   const optTables = document.getElementById('opt-tables');
   optTables.innerHTML = (data.tables || []).map(tData => `
     <option value="${tData.id}" ${cartState.tableId === tData.id ? 'selected':''}>
@@ -129,17 +196,16 @@ function renderPOS() {
     </option>
   `).join('');
 
-  // Check active order
+  // 3. Check Active Order on Selected Table
   const activeOrder = (data.orders || []).find(o => o.tableId === cartState.tableId && o.status !== 'completed');
   document.getElementById('active-order-alert').style.display = activeOrder ? 'block' : 'none';
 
-  // Category Tabs
+  // 4. Categories & Menu Grid
   const cats = ['All', ...new Set((data.menu || []).map(m => m.category || 'General'))];
   document.getElementById('cat-tabs').innerHTML = cats.map(c => `
     <button class="cat-btn ${posCategory === c ? 'active':''}" onclick="posCategory='${c}'; renderPOS();">${c}</button>
   `).join('');
 
-  // Dishes grid
   let dishes = posCategory === 'All' ? (data.menu || []) : (data.menu || []).filter(m => (m.category || 'General') === posCategory);
   if (posSearch.trim()) {
     const q = posSearch.toLowerCase();
@@ -153,7 +219,7 @@ function renderPOS() {
     </div>
   `).join('');
 
-  // Cart bar status
+  // 5. Cart Bar
   const cartBar = document.getElementById('pos-cart-bar');
   const count = cartState.items.reduce((s, i) => s + i.qty, 0);
   const total = cartState.items.reduce((s, i) => s + (i.price * i.qty), 0);
@@ -181,7 +247,7 @@ function addToPOSCart(dishId) {
 
 function openCartConfirmation() {
   if (!cartState.tableId) {
-    alert("Please select a Table or Delivery Channel first!");
+    alert("Please select a Floor Table first!");
     return;
   }
   const data = window.getData();
@@ -190,12 +256,10 @@ function openCartConfirmation() {
   const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
   const total = subtotal + gst;
 
-  let channelLabel = cartState.tableId;
-  const tbl = (data.tables || []).find(tData => tData.id === cartState.tableId);
-  if (tbl) channelLabel = tbl.name;
+  let channelLabel = getChannelName(cartState.tableId, data);
 
   const body = `
-    <div style="font-weight:700;margin-bottom:10px;">Channel / Table: ${channelLabel}</div>
+    <div style="font-weight:700;margin-bottom:10px;">Destination: ${channelLabel}</div>
     <div style="margin-bottom:12px;">
       ${cartState.items.map((it, idx) => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;">
@@ -219,9 +283,9 @@ function openCartConfirmation() {
     <div style="display:flex;justify-content:space-between;font-weight:800;font-size:15px;margin-top:6px;margin-bottom:12px;border-top:1px dashed var(--border);padding-top:6px;">
       <span>Total:</span><span>₹ ${total.toFixed(2)}</span>
     </div>
-    <button class="btn-primary" id="btn-dispatch-order" onclick="dispatchOrderToKitchen()">Confirm & Send KOT to Kitchen</button>
+    <button class="btn-primary" id="btn-dispatch-order" onclick="dispatchOrderToKitchen()">Send KOT to Kitchen →</button>
   `;
-  openSheet("Confirm Order", body);
+  openSheet("Confirm Waiter Order", body);
 }
 
 function changePOSQty(idx, delta) {
@@ -232,13 +296,10 @@ function changePOSQty(idx, delta) {
   renderPOS();
 }
 
-/* ==========================================================================
-   ATOMIC KOT DISPATCH (কিচেন থেকে অর্ডার উধাও হওয়া বন্ধের সমাধান)
-   ========================================================================== */
 async function dispatchOrderToKitchen() {
   if (cartState.items.length === 0 || !activeCafeId || !db) return;
   const btn = document.getElementById('btn-dispatch-order');
-  if (btn) { btn.disabled = true; btn.innerText = "Sending to Kitchen..."; }
+  if (btn) { btn.disabled = true; btn.innerText = "Dispatching..."; }
 
   try {
     const cafeRef = db.collection("cafes").doc(activeCafeId);
@@ -284,7 +345,7 @@ async function dispatchOrderToKitchen() {
         gstRate,
         total,
         status: 'preparing',
-        source: 'direct_pos',
+        source: 'waiter_pos',
         date: window.todayStr(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
@@ -293,7 +354,6 @@ async function dispatchOrderToKitchen() {
     const tbl = cData.tables.find(t => t.id === cartState.tableId);
     if (tbl) tbl.status = 'occupied';
 
-    // শুধুমাত্র orders ও tables আপডেট করা হচ্ছে যাতে কোনো ব্যাকগ্রাউন্ড ক্যাশ কনফ্লিক্ট না হয়
     await cafeRef.update({
       orders: cData.orders,
       tables: cData.tables
@@ -301,10 +361,34 @@ async function dispatchOrderToKitchen() {
 
     cartState = { tableId: '', items: [] };
     closeSheet();
-    window.location.href = 'kitchen.html';
+    alert("KOT dispatched to kitchen successfully!");
+    renderPOS();
   } catch (err) {
-    alert("Error sending order to kitchen: " + err.message);
-    if (btn) { btn.disabled = false; btn.innerText = "Confirm & Send KOT to Kitchen"; }
+    alert("Order failed: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = "Send KOT to Kitchen →"; }
+  }
+}
+
+// WAITER MARKS FOOD AS SERVED AT THE TABLE
+async function confirmFoodServed(orderId) {
+  if (!activeCafeId || !db) return;
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const orders = cData.orders || [];
+    const o = orders.find(ord => ord.id === orderId);
+    if (o) {
+      o.status = 'served'; // Served and ready for billing
+      await cafeRef.update({ orders });
+      alert("Food marked as Served at the table! ✓");
+      renderPOS();
+    }
+  } catch(err) {
+    alert("Action failed: " + err.message);
   }
 }
 
@@ -318,7 +402,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (activeCafeId) {
         bindCafeCloudListener(activeCafeId, renderPOS);
       } else {
-        window.location.href = 'index.html';
+        window.location.href = 'staff.html';
       }
     });
   }
