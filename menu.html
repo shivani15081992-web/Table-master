@@ -89,6 +89,13 @@
       <label>UPI ID (For Scan to Pay QR)</label>
       <input type="text" id="cfg-upi" placeholder="merchant@upi">
 
+      <!-- GOOGLE REVIEW URL FOR BILL PRINTING -->
+      <label>Google Review URL (গুগল রিভিউ লিঙ্ক — ফর থার্মাল বিল QR)</label>
+      <input type="url" id="cfg-review" placeholder="https://g.page/r/your-review-link/review">
+      <small style="color:var(--text-muted);display:block;margin-top:-6px;margin-bottom:10px;font-size:10.5px;">
+        * এই লিঙ্ক দিলে থার্মাল রিসিপ্টের নিচে রিভিউ কিউআর কোড স্বয়ংক্রিয়ভাবে প্রিন্ট হবে।
+      </small>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div>
           <label>GST Rate (%) [0 to Hide]</label>
@@ -100,7 +107,7 @@
         </div>
       </div>
 
-      <button class="btn-primary" onclick="saveCafeSettings()">Save Restaurant Settings</button>
+      <button class="btn-primary" id="btn-save-settings" onclick="saveCafeSettings()">Save Restaurant Settings</button>
     </div>
 
     <!-- FOOTER BRANDING -->
@@ -146,6 +153,8 @@
   </div>
 
 <script>
+let activeCafeId = '';
+
 function handleLogout() {
   if (confirm("Log out from Settings Terminal?")) {
     sessionStorage.removeItem('tmpro_role_mode');
@@ -171,7 +180,7 @@ function renderMenu() {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;">
         <div>
           <div style="font-weight:700;font-size:13.5px;">${d.name}</div>
-          <div style="font-size:11px;color:var(--text-muted);">${d.category}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${d.category || 'General'}</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-weight:800;color:var(--primary);font-size:14px;">₹ ${d.price}</span>
@@ -191,7 +200,7 @@ function renderMenu() {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;">
         <div>
           <strong style="font-size:13px;">${s.name}</strong> 
-          <span style="font-size:11.5px;color:var(--text-muted);display:block;margin-top:2px;">📞 ${s.phone} · Role: <b>${s.role.toUpperCase()}</b></span>
+          <span style="font-size:11.5px;color:var(--text-muted);display:block;margin-top:2px;">📞 ${s.phone} · Role: <b>${(s.role || 'waiter').toUpperCase()}</b></span>
         </div>
         <button class="btn-danger" style="padding:4px 8px;font-size:11px;" onclick="deleteStaff('${s.id}')">✕</button>
       </div>
@@ -203,6 +212,7 @@ function renderMenu() {
   document.getElementById('cfg-phone').value = data.phone || '';
   document.getElementById('cfg-addr').value = data.address || '';
   document.getElementById('cfg-upi').value = data.upi || '';
+  document.getElementById('cfg-review').value = data.googleReview || '';
   document.getElementById('cfg-gst').value = data.gstRate || 0;
   document.getElementById('cfg-pin').value = data.masterPin || '1234';
 
@@ -226,7 +236,7 @@ function renderMenu() {
 }
 
 /* ==========================================================================
-   DISH ACTIONS
+   DISH ACTIONS (DIRECT FIRESTORE ATOMIC UPDATE)
    ========================================================================== */
 function openAddDishModal() {
   const form = `
@@ -239,45 +249,68 @@ function openAddDishModal() {
     <label>Price (₹)</label>
     <input type="number" id="add-dish-price" placeholder="180" step="0.01">
 
-    <button class="btn-primary" onclick="saveNewDish()">Save Food Item</button>
+    <button class="btn-primary" id="btn-save-dish" onclick="saveNewDish()">Save Food Item</button>
   `;
   openSheet("Add New Food Item", form);
 }
 
-function saveNewDish() {
-  const data = window.getData();
+async function saveNewDish() {
+  if (!activeCafeId || !db) return;
   const name = document.getElementById('add-dish-name').value.trim();
   const category = document.getElementById('add-dish-cat').value.trim() || 'General';
   const price = parseFloat(document.getElementById('add-dish-price').value);
+  const btn = document.getElementById('btn-save-dish');
 
   if (!name || isNaN(price) || price < 0) {
     alert("Please enter valid dish details and price!");
     return;
   }
 
-  if (!data.menu) data.menu = [];
-  data.menu.push({
-    id: 'm_' + Date.now(),
-    name: name,
-    category: category,
-    price: price
-  });
+  if (btn) { btn.disabled = true; btn.innerText = "Saving..."; }
 
-  window.cloudSave();
-  closeSheet();
-  renderMenu();
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const menu = cData.menu || [];
+    menu.push({
+      id: 'm_' + Date.now(),
+      name: name,
+      category: category,
+      price: price
+    });
+
+    await cafeRef.update({ menu });
+    closeSheet();
+    renderMenu();
+  } catch(err) {
+    alert("Failed to save dish: " + err.message);
+    if (btn) { btn.disabled = false; btn.innerText = "Save Food Item"; }
+  }
 }
 
-function deleteDish(id) {
-  const data = window.getData();
+async function deleteDish(id) {
+  if (!activeCafeId || !db) return;
   if (!confirm("Are you sure you want to delete this food item?")) return;
-  data.menu = (data.menu || []).filter(d => d.id !== id);
-  window.cloudSave();
-  renderMenu();
+
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const menu = (cData.menu || []).filter(d => d.id !== id);
+    await cafeRef.update({ menu });
+    renderMenu();
+  } catch(err) {
+    alert("Failed to delete dish: " + err.message);
+  }
 }
 
 /* ==========================================================================
-   STAFF MANAGEMENT (10-DIGIT MOBILE PHONE ENFORCED)
+   STAFF MANAGEMENT (10-DIGIT MOBILE NUMBER SYSTEM)
    ========================================================================== */
 function openAddStaffModal() {
   const form = `
@@ -302,7 +335,7 @@ function openAddStaffModal() {
 }
 
 async function saveNewStaffAccount() {
-  const data = window.getData();
+  if (!activeCafeId || !db) return;
   const name = document.getElementById('stf-add-name').value.trim();
   const phone = document.getElementById('stf-add-phone').value.trim();
   const pass = document.getElementById('stf-add-pass').value.trim();
@@ -338,16 +371,21 @@ async function saveNewStaffAccount() {
     await secondaryApp.delete();
 
     await db.collection("users").doc(staffUid).set({
-      cafeId: data.cafeId,
+      cafeId: activeCafeId,
       role: role,
       name: name,
       phone: phone
     });
 
-    if (!data.staff) data.staff = [];
-    data.staff.push({ id: staffUid, name: name, phone: phone, role: role });
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (docSnap.exists) {
+      const cData = docSnap.data();
+      const staffList = cData.staff || [];
+      staffList.push({ id: staffUid, name: name, phone: phone, role: role });
+      await cafeRef.update({ staff: staffList });
+    }
 
-    window.cloudSave();
     closeSheet();
     renderMenu();
     alert(`Staff account registered successfully!\n\nStaff Login:\nMobile: ${phone}\nPassword: ${pass}`);
@@ -363,17 +401,27 @@ async function saveNewStaffAccount() {
   }
 }
 
-function deleteStaff(id) {
-  const data = window.getData();
+async function deleteStaff(id) {
+  if (!activeCafeId || !db) return;
   if (!confirm("Are you sure you want to remove this staff member?")) return;
-  data.staff = (data.staff || []).filter(s => s.id !== id);
-  db.collection("users").doc(id).delete().catch(() => {});
-  window.cloudSave();
-  renderMenu();
+
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (docSnap.exists) {
+      const cData = docSnap.data();
+      const staffList = (cData.staff || []).filter(s => s.id !== id);
+      await cafeRef.update({ staff: staffList });
+    }
+    await db.collection("users").doc(id).delete().catch(() => {});
+    renderMenu();
+  } catch(err) {
+    alert("Failed to delete staff: " + err.message);
+  }
 }
 
 /* ==========================================================================
-   LOGO UPLOAD WITH AUTO-COMPRESSION & SETTINGS
+   LOGO UPLOAD & SETTINGS (WITH GOOGLE REVIEW INTEGRATION)
    ========================================================================== */
 function handleLogoCompressUpload(e) {
   const file = e.target.files[0];
@@ -382,7 +430,7 @@ function handleLogoCompressUpload(e) {
   const reader = new FileReader();
   reader.onload = function(evt) {
     const img = new Image();
-    img.onload = function() {
+    img.onload = async function() {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const maxDim = 150;
@@ -398,7 +446,6 @@ function handleLogoCompressUpload(e) {
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert to thermal printer friendly grayscale
       const imgData = ctx.getImageData(0, 0, width, height);
       const pixels = imgData.data;
       for (let i = 0; i < pixels.length; i += 4) {
@@ -408,37 +455,52 @@ function handleLogoCompressUpload(e) {
       ctx.putImageData(imgData, 0, 0);
 
       const compressedB64 = canvas.toDataURL('image/jpeg', 0.65);
-      const data = window.getData();
-      data.logo = compressedB64;
-      window.cloudSave();
-      renderMenu();
-      alert("Restaurant logo uploaded and optimized for thermal receipts!");
+      if (activeCafeId && db) {
+        await db.collection("cafes").doc(activeCafeId).update({ logo: compressedB64 });
+        renderMenu();
+        alert("Restaurant logo uploaded and optimized for thermal receipts!");
+      }
     };
     img.src = evt.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-function removeCafeLogo() {
-  const data = window.getData();
-  data.logo = '';
-  window.cloudSave();
-  renderMenu();
-  alert("Custom logo removed. Default Golden Cutlery Logo restored!");
+async function removeCafeLogo() {
+  if (!activeCafeId || !db) return;
+  try {
+    await db.collection("cafes").doc(activeCafeId).update({ logo: '' });
+    renderMenu();
+    alert("Custom logo removed. Default Golden Cutlery Logo restored!");
+  } catch(err) {
+    alert("Error removing logo: " + err.message);
+  }
 }
 
-function saveCafeSettings() {
-  const data = window.getData();
-  data.name = document.getElementById('cfg-name').value.trim() || data.name;
-  data.phone = document.getElementById('cfg-phone').value.trim() || data.phone;
-  data.address = document.getElementById('cfg-addr').value.trim() || data.address;
-  data.upi = document.getElementById('cfg-upi').value.trim() || data.upi;
-  data.gstRate = parseFloat(document.getElementById('cfg-gst').value) || 0;
-  data.masterPin = document.getElementById('cfg-pin').value.trim() || data.masterPin;
+async function saveCafeSettings() {
+  if (!activeCafeId || !db) return;
+  const btn = document.getElementById('btn-save-settings');
+  if (btn) { btn.disabled = true; btn.innerText = "Saving..."; }
 
-  window.cloudSave();
-  alert("Restaurant settings saved successfully!");
-  renderMenu();
+  const name = document.getElementById('cfg-name').value.trim();
+  const phone = document.getElementById('cfg-phone').value.trim();
+  const address = document.getElementById('cfg-addr').value.trim();
+  const upi = document.getElementById('cfg-upi').value.trim();
+  const googleReview = document.getElementById('cfg-review').value.trim();
+  const gstRate = parseFloat(document.getElementById('cfg-gst').value) || 0;
+  const masterPin = document.getElementById('cfg-pin').value.trim() || '1234';
+
+  try {
+    await db.collection("cafes").doc(activeCafeId).update({
+      name, phone, address, upi, googleReview, gstRate, masterPin
+    });
+    alert("Restaurant settings saved successfully!");
+    renderMenu();
+  } catch(err) {
+    alert("Failed to save settings: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = "Save Restaurant Settings"; }
+  }
 }
 
 /* ==========================================================================
@@ -453,7 +515,7 @@ function downloadFullDataBackup() {
     version: "2.0",
     developer: "Debapriya Sarkar (9046356631)",
     backupDate: new Date().toISOString(),
-    cafeId: data.cafeId,
+    cafeId: activeCafeId,
     data: JSON.parse(JSON.stringify(data))
   };
 
@@ -466,7 +528,7 @@ function downloadFullDataBackup() {
 
 function restoreDataFromFile(event) {
   const file = event.target.files[0];
-  if (!file) return;
+  if (!file || !activeCafeId || !db) return;
 
   const reader = new FileReader();
   reader.onload = async (e) => {
@@ -474,14 +536,10 @@ function restoreDataFromFile(event) {
       const backup = JSON.parse(e.target.result);
       if (!backup.data || !backup.data.cafeId) throw new Error("Invalid backup JSON format!");
 
-      const current = window.getData();
       if (!confirm(`Are you sure you want to restore data from backup dated ${new Date(backup.backupDate).toLocaleString()}? All current data will be replaced.`)) return;
 
-      backup.data.cafeId = current.cafeId;
-      backup.data.ownerUid = current.ownerUid;
-      window.RESTAURANT_DATA = backup.data;
-
-      window.cloudSave();
+      backup.data.cafeId = activeCafeId;
+      await db.collection("cafes").doc(activeCafeId).set(backup.data, { merge: true });
       alert("Restaurant data successfully restored from backup!");
       renderMenu();
     } catch(err) {
@@ -494,9 +552,9 @@ function restoreDataFromFile(event) {
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
-      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) {
-        bindCafeCloudListener(cafeId, renderMenu);
+      activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (activeCafeId) {
+        bindCafeCloudListener(activeCafeId, renderMenu);
       } else {
         window.location.href = 'index.html';
       }
