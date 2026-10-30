@@ -67,6 +67,8 @@
   </nav>
 
 <script>
+let currentCafeId = '';
+
 function handleLogout() {
   if (confirm("Log out from Kitchen Monitor?")) {
     sessionStorage.removeItem('tmpro_role_mode');
@@ -123,23 +125,32 @@ function renderKitchen() {
   `).join('');
 }
 
-function markKOTReady(orderId) {
-  const data = window.getData();
-  const o = (data.orders || []).find(ord => ord.id === orderId);
-  if (o) {
-    o.status = 'ready_to_serve';
-    (o.items || []).forEach(it => it.isAddOn = false);
-    window.cloudSave();
-    renderKitchen();
+async function markKOTReady(orderId) {
+  if (!currentCafeId || !db) return;
+  try {
+    const cafeRef = db.collection("cafes").doc(currentCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const orders = cData.orders || [];
+    const o = orders.find(ord => ord.id === orderId);
+    if (o) {
+      o.status = 'ready_to_serve';
+      (o.items || []).forEach(it => it.isAddOn = false);
+      await cafeRef.update({ orders: orders });
+    }
+  } catch(err) {
+    console.error("Failed to mark KOT ready:", err);
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
-      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) {
-        bindCafeCloudListener(cafeId, renderKitchen);
+      currentCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (currentCafeId) {
+        bindCafeCloudListener(currentCafeId, renderKitchen);
       } else {
         window.location.href = 'staff.html';
       }
