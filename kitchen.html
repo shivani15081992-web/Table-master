@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Kitchen Monitor — TableMaster Pro</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-box">
+      <span id="txt-cafe-name">Kitchen KOT Live</span>
+      <div class="role-badge" style="background:#fef3c7;color:#b45309;">KITCHEN</div>
+    </div>
+    <div class="top-actions">
+      <div class="sync-badge syncing" id="sync-status">🔄 Online</div>
+      <button class="lang-toggle-btn" onclick="toggleLanguage(renderKitchen)">🌐</button>
+    </div>
+  </header>
+
+  <main class="main-wrapper">
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>Active Preparing Orders</span>
+        <small style="color:var(--warning);font-weight:700;" id="kot-count-live">0 Active</small>
+      </div>
+      <div id="kitchen-kot-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </main>
+
+  <nav class="bottom-bar">
+    <a href="index.html" class="bar-item">Home</a>
+    <a href="pos.html" class="bar-item">Order</a>
+    <a href="kitchen.html" class="bar-item active">Kitchen</a>
+    <a href="bills.html" class="bar-item">Bills</a>
+    <a href="menu.html" class="bar-item">Menu</a>
+  </nav>
+
+<script>
+function renderKitchen() {
+  const data = window.getData();
+  updateHeaderBrand(data);
+  const liveKOT = (data.orders || []).filter(o => o.status === 'preparing');
+  document.getElementById('kot-count-live').innerText = `${liveKOT.length} Active`;
+
+  const container = document.getElementById('kitchen-kot-list');
+  if (liveKOT.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">No active orders in kitchen right now!</div>';
+    return;
+  }
+
+  container.innerHTML = liveKOT.map(o => `
+    <div style="border:1.5px solid var(--border);border-radius:10px;padding:12px;background:#fff;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="font-size:15px;">#KOT-${o.kotNo} (${o.tableId.toUpperCase()})</strong>
+        <span style="font-size:10px;padding:3px 8px;border-radius:12px;background:#fef3c7;color:#b45309;font-weight:700;">PREPARING</span>
+      </div>
+      <div style="font-size:12.5px;color:#334155;line-height:1.5;margin-bottom:10px;">
+        ${(o.items || []).map(i => `<div>• <b>${i.qty}x</b> ${i.name}</div>`).join('')}
+      </div>
+      <button class="btn-primary" style="padding:9px;font-size:12.5px;background:#059669;" onclick="markKOTReady('${o.id}')">Ready to Serve ✓</button>
+    </div>
+  `).join('');
+}
+
+function markKOTReady(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (o) {
+    o.status = 'ready_to_serve';
+    window.cloudSave();
+    renderKitchen();
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (initFirebase()) {
+    auth.onAuthStateChanged((user) => {
+      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (cafeId) bindCafeCloudListener(cafeId, renderKitchen);
+      else window.location.href = 'staff.html';
+    });
+  }
+});
+</script>
+</body>
+</html>
