@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Reports & Profit — TableMaster Pro</title>
+<title>Reports & Financial Analytics — TableMaster Pro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a1a">
 <link rel="stylesheet" href="shared.css">
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
@@ -11,86 +13,268 @@
 <script src="shared.js"></script>
 </head>
 <body>
+  <!-- TOPBAR -->
   <header class="topbar">
     <div class="brand-box">
-      <span id="txt-cafe-name">Profit & Reports</span>
-      <div class="role-badge">ANALYTICS</div>
+      <div class="brand-icon" id="header-logo-container"></div>
+      <div>
+        <span id="txt-cafe-name">Profit & Reports</span>
+        <div id="active-user-role" class="role-badge">REPORTS</div>
+      </div>
     </div>
     <div class="top-actions">
-      <div class="sync-badge syncing" id="sync-status">🔄 Online</div>
+      <div class="sync-badge syncing" id="sync-status">🔄 Connecting...</div>
+      <button class="lang-toggle-btn" onclick="toggleLanguage(renderReports)">🌐 <span id="lbl-lang">English</span></button>
+      <button class="btn-icon" onclick="handleLogout()" title="Logout" style="color:var(--danger)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
     </div>
   </header>
 
+  <!-- MAIN ANALYTICS WRAPPER -->
   <main class="main-wrapper">
     <div class="tm-card">
       <div class="tm-card-title">
-        <span>Financial Summary</span>
+        <span>Business Performance Analytics</span>
         <button class="btn-sm-outline" onclick="exportCSVReport()">📥 Export CSV</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+
+      <!-- FILTER TABS -->
+      <div class="filter-bar">
+        <button class="filter-chip active" id="rf-today" onclick="setReportFilter('today')">Today</button>
+        <button class="filter-chip" id="rf-week" onclick="setReportFilter('week')">This Week</button>
+        <button class="filter-chip" id="rf-month" onclick="setReportFilter('month')">This Month</button>
+        <button class="filter-chip" id="rf-all" onclick="setReportFilter('all')">All Time</button>
+      </div>
+
+      <!-- SALES & EXPENSES KPI -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;margin-top:10px;">
         <div style="background:#ecfdf5;border:1px solid #a7f3d0;padding:12px;border-radius:10px;">
-          <div style="font-size:11px;color:#047857;font-weight:700;">TOTAL SALES</div>
-          <div style="font-size:20px;font-weight:800;color:#065f46;margin-top:2px;" id="rep-sales">₹ 0.00</div>
+          <div style="font-size:10.5px;color:#047857;font-weight:700;text-transform:uppercase;">TOTAL SALES</div>
+          <div style="font-size:22px;font-weight:800;color:#065f46;margin-top:2px;" id="rep-sales">₹ 0.00</div>
         </div>
         <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:10px;">
-          <div style="font-size:11px;color:#b91c1c;font-weight:700;">TOTAL EXPENSE</div>
-          <div style="font-size:20px;font-weight:800;color:#991b1b;margin-top:2px;" id="rep-expense">₹ 0.00</div>
+          <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;">TOTAL EXPENSES</div>
+          <div style="font-size:22px;font-weight:800;color:#991b1b;margin-top:2px;" id="rep-expense">₹ 0.00</div>
         </div>
       </div>
+
+      <!-- NET PROFIT BANNER -->
       <div class="profit-banner profit" id="profit-box">
         <div>
-          <div class="label">NET PROFIT / LOSS</div>
+          <div class="label" id="rep-profit-label">NET PROFIT</div>
           <div class="val" id="rep-net-profit">₹ 0.00</div>
         </div>
       </div>
+
+      <!-- TOP SELLING DISHES -->
+      <div style="margin-top:18px;margin-bottom:16px;">
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;">🏆 Top Selling Items</h4>
+        <div id="top-selling-container"></div>
+      </div>
+
+      <!-- DAILY STATEMENT BREAKDOWN -->
+      <div style="margin-top:18px;">
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;">📅 Daily Breakdown</h4>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Sales</th>
+                <th>Expense</th>
+                <th>Net</th>
+              </tr>
+            </thead>
+            <tbody id="daily-breakdown-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER BRANDING -->
+    <div class="dev-footer">
+      Powered by <b>TableMaster Pro Enterprise Cloud</b><br>
+      Software Developed by: <b>Debapriya Sarkar</b> (9046356631)
     </div>
   </main>
 
+  <!-- BOTTOM NAVIGATION -->
   <nav class="bottom-bar">
-    <a href="index.html" class="bar-item">Home</a>
-    <a href="pos.html" class="bar-item">Order</a>
-    <a href="reports.html" class="bar-item active">Reports</a>
-    <a href="bills.html" class="bar-item">Bills</a>
-    <a href="menu.html" class="bar-item">Menu</a>
+    <a href="index.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span>Home</span>
+    </a>
+    <a href="pos.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+      <span>Order</span>
+    </a>
+    <a href="kitchen.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+      <span>Kitchen</span>
+    </a>
+    <a href="bills.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <span>Bills</span>
+    </a>
+    <a href="menu.html" class="bar-item">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      <span>Menu</span>
+    </a>
   </nav>
 
 <script>
+let activeReportFilter = 'today';
+
+function handleLogout() {
+  if (confirm("Log out from Reports Terminal?")) {
+    sessionStorage.removeItem('tmpro_role_mode');
+    sessionStorage.removeItem('tmpro_cafe_id');
+    auth.signOut().then(() => {
+      window.location.href = 'index.html';
+    });
+  }
+}
+
+function setReportFilter(filter) {
+  activeReportFilter = filter;
+  document.getElementById('rf-today').classList.toggle('active', filter === 'today');
+  document.getElementById('rf-week').classList.toggle('active', filter === 'week');
+  document.getElementById('rf-month').classList.toggle('active', filter === 'month');
+  document.getElementById('rf-all').classList.toggle('active', filter === 'all');
+  renderReports();
+}
+
 function renderReports() {
   const data = window.getData();
   updateHeaderBrand(data);
-  const totalSales = (data.orders || []).filter(o => o.status === 'completed').reduce((s, o) => s + (o.total||0), 0);
-  const totalExp = (data.expenses || []).reduce((s, e) => s + (e.amount||0), 0);
-  const profit = totalSales - totalExp;
+  document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
+
+  const today = window.todayStr();
+  let orders = (data.orders || []).filter(o => o.status === 'completed');
+  let expenses = data.expenses || [];
+
+  // Filter ranges
+  if (activeReportFilter === 'today') {
+    orders = orders.filter(o => o.date === today);
+    expenses = expenses.filter(e => e.date === today);
+  } else if (activeReportFilter === 'week') {
+    const d = new Date(); 
+    d.setDate(d.getDate() - 7);
+    const weekAgo = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    orders = orders.filter(o => (o.date || today) >= weekAgo);
+    expenses = expenses.filter(e => (e.date || today) >= weekAgo);
+  } else if (activeReportFilter === 'month') {
+    const monthPrefix = today.slice(0, 7);
+    orders = orders.filter(o => (o.date || today).startsWith(monthPrefix));
+    expenses = expenses.filter(e => (e.date || today).startsWith(monthPrefix));
+  }
+
+  const totalSales = orders.reduce((s, o) => s + (o.total || 0), 0);
+  const totalExp = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const netProfit = totalSales - totalExp;
 
   document.getElementById('rep-sales').innerText = `₹ ${totalSales.toFixed(2)}`;
   document.getElementById('rep-expense').innerText = `₹ ${totalExp.toFixed(2)}`;
-  document.getElementById('rep-net-profit').innerText = `₹ ${profit.toFixed(2)}`;
+  document.getElementById('rep-net-profit').innerText = `₹ ${Math.abs(netProfit).toFixed(2)}`;
+  
   const pBox = document.getElementById('profit-box');
-  pBox.className = profit >= 0 ? 'profit-banner profit' : 'profit-banner loss';
+  const pLabel = document.getElementById('rep-profit-label');
+  if (netProfit >= 0) {
+    pBox.className = 'profit-banner profit';
+    pLabel.innerText = 'NET PROFIT';
+  } else {
+    pBox.className = 'profit-banner loss';
+    pLabel.innerText = 'NET LOSS';
+  }
+
+  // Top Selling Dishes
+  const itemMap = {};
+  orders.forEach(o => {
+    (o.items || []).forEach(it => {
+      if (!itemMap[it.name]) itemMap[it.name] = { qty: 0, revenue: 0 };
+      itemMap[it.name].qty += it.qty;
+      itemMap[it.name].revenue += (it.price * it.qty);
+    });
+  });
+  const topDishes = Object.entries(itemMap).sort((a,b) => b[1].revenue - a[1].revenue).slice(0, 5);
+  const maxRevenue = topDishes[0] ? topDishes[0][1].revenue : 1;
+
+  const topContainer = document.getElementById('top-selling-container');
+  if (topDishes.length === 0) {
+    topContainer.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">No sales data for this period.</div>';
+  } else {
+    topContainer.innerHTML = topDishes.map(([name, d]) => `
+      <div class="bar-row">
+        <div class="bar-label">${name}</div>
+        <div class="bar-track">
+          <div class="bar-fill green" style="width:${(d.revenue / maxRevenue) * 100}%"></div>
+        </div>
+        <div class="bar-val">₹ ${d.revenue.toFixed(0)} <span style="font-size:10px;color:var(--text-muted);">(${d.qty})</span></div>
+      </div>
+    `).join('');
+  }
+
+  // Daily Breakdown Table
+  const dayMap = {};
+  orders.forEach(o => {
+    const d = o.date || today;
+    if (!dayMap[d]) dayMap[d] = { sales: 0, exp: 0 };
+    dayMap[d].sales += (o.total || 0);
+  });
+  expenses.forEach(e => {
+    const d = e.date || today;
+    if (!dayMap[d]) dayMap[d] = { sales: 0, exp: 0 };
+    dayMap[d].exp += (e.amount || 0);
+  });
+
+  const dayRows = Object.entries(dayMap).sort((a,b) => b[0].localeCompare(a[0]));
+  const tbody = document.getElementById('daily-breakdown-body');
+  if (dayRows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;">No records available.</td></tr>';
+  } else {
+    tbody.innerHTML = dayRows.map(([d, val]) => `
+      <tr>
+        <td><b>${d}</b></td>
+        <td>₹ ${val.sales.toFixed(2)}</td>
+        <td style="color:#dc2626;">₹ ${val.exp.toFixed(2)}</td>
+        <td style="font-weight:700;color:${(val.sales - val.exp) >= 0 ? '#059669' : '#dc2626'};">
+          ₹ ${(val.sales - val.exp).toFixed(2)}
+        </td>
+      </tr>
+    `).join('');
+  }
 }
 
 function exportCSVReport() {
   const data = window.getData();
-  let csv = "TableMaster Pro - Financial Statement\n";
-  csv += "Software Developer,Debapriya Sarkar (9046356631)\n";
-  csv += "Type,Date,Description,Amount\n";
+  let csv = "TableMaster Pro - Financial Performance Statement\n";
+  csv += "Software Developed by,Debapriya Sarkar (Contact: 9046356631)\n";
+  csv += "Type,Date,Reference,Amount\n";
+
   (data.orders || []).filter(o => o.status === 'completed').forEach(o => {
-    csv += `Sales,${o.date},Bill #${o.billNo},${o.total.toFixed(2)}\n`;
+    csv += `Sales,${o.date},Bill #${o.billNo},${(o.total || 0).toFixed(2)}\n`;
   });
   (data.expenses || []).forEach(e => {
-    csv += `Expense,${e.date},"${e.desc}",${e.amount.toFixed(2)}\n`;
+    csv += `Expense,${e.date},"${e.desc}",${(e.amount || 0).toFixed(2)}\n`;
   });
+
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `Report_${window.todayStr()}.csv`; a.click();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `TableMaster_Report_${window.todayStr()}.csv`;
+  a.click();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
       let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) bindCafeCloudListener(cafeId, renderReports);
-      else window.location.href = 'index.html';
+      if (cafeId) {
+        bindCafeCloudListener(cafeId, renderReports);
+      } else {
+        window.location.href = 'index.html';
+      }
     });
   }
 });
