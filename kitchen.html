@@ -42,7 +42,7 @@
     </div>
   </main>
 
-  <!-- BOTTOM NAVIGATION (KITCHEN STAFF SEES ONLY ESSENTIALS) -->
+  <!-- BOTTOM NAVIGATION -->
   <nav class="bottom-bar" id="kitchen-nav-bar">
     <a href="kitchen.html" class="bar-item active">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
@@ -52,6 +52,7 @@
 
 <script>
 let currentCafeId = '';
+let lastKnownKOTCount = -1;
 
 function handleLogout() {
   const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
@@ -79,9 +80,14 @@ function renderKitchen() {
   updateHeaderBrand(data);
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  // Only show orders that are currently PREPARING
   const liveKOT = (data.orders || []).filter(o => o.status === 'preparing');
   document.getElementById('kot-count-live').innerText = `${liveKOT.length} Active`;
+
+  // নতুন KOT ঢুকলেই কিচেন বেল (Double Ding) বেজে উঠবে
+  if (lastKnownKOTCount !== -1 && liveKOT.length > lastKnownKOTCount) {
+    window.playAlertTone('kot');
+  }
+  lastKnownKOTCount = liveKOT.length;
 
   const container = document.getElementById('kitchen-kot-list');
   if (liveKOT.length === 0) {
@@ -124,7 +130,6 @@ async function markKOTReady(orderId) {
     const orders = cData.orders || [];
     const o = orders.find(ord => ord.id === orderId);
     if (o) {
-      // Transition state: preparing -> ready_to_serve (Waiter handles from here)
       o.status = 'ready_to_serve';
       (o.items || []).forEach(it => it.isAddOn = false);
       await cafeRef.update({ orders: orders });
