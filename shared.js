@@ -1,6 +1,7 @@
 /* ==========================================================================
    TableMaster Pro — Shared Core Engine (shared.js)
    Developer: Debapriya Sarkar (Contact: 9046356631)
+   Ultra-Fast Cache-First & Instant Sync Architecture
    ========================================================================== */
 
 const firebaseConfig = {
@@ -17,7 +18,7 @@ let auth = null;
 let db = null;
 let currentCafeListener = null;
 
-// ইনবিল্ট গোল্ডেন ভেক্টর কাটলারি লোগো (যখন রেস্তোরাঁ নিজস্ব কোনো ছবি দেয় না)
+// ইনবিল্ট গোল্ডেন ভেক্টর কাটলারি লোগো (যখন রেস্তোরাঁ নিজস্ব লোগো দেয় না)
 const DEFAULT_GOLD_SVG_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
 function initFirebase() {
@@ -43,7 +44,7 @@ window.todayStr = function() {
   }).format(new Date());
 };
 
-// গ্লোবাল স্টেট ইনিশিয়ালাইজেশন
+// গ্লোবাল স্টেট
 window.RESTAURANT_DATA = {
   cafeId: 'default_cafe', name: 'TableMaster Bistro', phone: '', address: '',
   masterPin: '1234', gstRate: 0, serviceRate: 0, logo: '',
@@ -68,30 +69,35 @@ window.RESTAURANT_DATA = {
 window.CURRENT_USER_ROLE = sessionStorage.getItem('tmpro_role_mode') || 'owner';
 window.getData = function() { return window.RESTAURANT_DATA || {}; };
 
-// ক্যাশে ব্যাকআপ রাখা যাতে পেজ বদলালেও ডেটা ফাঁকা না হয়
-function restoreLocalCachedData(cafeId) {
+/* ==========================================================================
+   CACHE-FIRST INSTANT CLOUD ENGINE
+   (কোনো পেজ লোডিং ল্যাগ থাকবে না, মিলি-সেকেন্ডে স্ক্রিন ওপেন হবে)
+   ========================================================================== */
+function bindCafeCloudListener(cafeId, onUpdateCallback) {
+  if (!db || !cafeId) return;
+
+  // ১. মেমোরি / লোকাল স্টোরেজ থেকে তাৎক্ষণিক ০ সেকেন্ডে রেন্ডার
   const cached = localStorage.getItem('tmpro_cafe_cache_' + cafeId);
   if (cached) {
     try {
       window.RESTAURANT_DATA = Object.assign({}, window.RESTAURANT_DATA, JSON.parse(cached));
+      window.RESTAURANT_DATA.cafeId = cafeId;
+      if (typeof onUpdateCallback === 'function') onUpdateCallback();
     } catch(e) {}
   }
-}
 
-// ক্লাউড ডেটাবেস লিসেনার (রিয়েলটাইম সিঙ্ক ও কোনো ফিল্ড গায়েব না হওয়ার লজিক)
-function bindCafeCloudListener(cafeId, onUpdateCallback) {
-  if (!db || !cafeId) return;
-  restoreLocalCachedData(cafeId);
+  const badge = document.getElementById('sync-status');
+  if (badge) { 
+    badge.className = 'sync-badge online'; 
+    badge.innerHTML = '⚡ Instant'; 
+  }
 
   if (currentCafeListener) { try { currentCafeListener(); } catch(e){} }
 
-  const badge = document.getElementById('sync-status');
-  if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '🔄 Connecting...'; }
-
+  // ২. ব্যাকগ্রাউন্ডে ফায়ারবেসের রিয়েল-টাইম সিঙ্ক
   currentCafeListener = db.collection("cafes").doc(cafeId).onSnapshot((docSnap) => {
     if (docSnap.exists) {
       const serverData = docSnap.data();
-      // সার্ভার ডেটার সাথে সুরক্ষিতভাবে মার্জ করা হচ্ছে
       window.RESTAURANT_DATA = Object.assign({}, window.RESTAURANT_DATA, serverData);
       window.RESTAURANT_DATA.cafeId = cafeId;
 
@@ -107,30 +113,38 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
       } catch(e) {}
     }
 
-    if (badge) { badge.className = 'sync-badge online'; badge.innerHTML = '☁️ Online'; }
+    if (badge) { 
+      badge.className = 'sync-badge online'; 
+      badge.innerHTML = '☁️ Live'; 
+    }
     if (typeof onUpdateCallback === 'function') onUpdateCallback();
   }, (err) => {
-    console.warn("Firestore sync warning:", err);
-    if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '⚡ Local Mode'; }
+    console.warn("Firestore sync background warning:", err);
+    if (badge) { 
+      badge.className = 'sync-badge online'; 
+      badge.innerHTML = '⚡ Local Mode'; 
+    }
     if (typeof onUpdateCallback === 'function') onUpdateCallback();
   });
 }
 
-// ক্লাউডে সুরক্ষিত সেভ
+// ক্লাউডে সুরক্ষিত সেভ (ডেটা ওভাররাইট রোধ)
 window.cloudSave = function() {
   const data = window.getData();
   if (!data || !data.cafeId || !db) return;
 
-  try { localStorage.setItem('tmpro_cafe_cache_' + data.cafeId, JSON.stringify(data)); } catch(e){}
+  try { 
+    localStorage.setItem('tmpro_cafe_cache_' + data.cafeId, JSON.stringify(data)); 
+  } catch(e){}
 
   const badge = document.getElementById('sync-status');
   if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '🔄 Syncing...'; }
 
   db.collection("cafes").doc(data.cafeId).set(data, { merge: true }).then(() => {
-    if (badge) { badge.className = 'sync-badge online'; badge.innerHTML = '☁️ Online'; }
+    if (badge) { badge.className = 'sync-badge online'; badge.innerHTML = '☁️ Live'; }
   }).catch(err => {
     console.error("Cloud save failed:", err);
-    if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '⚠️ Error'; }
+    if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '⚠️ Offline Saved'; }
   });
 };
 
@@ -169,7 +183,7 @@ function toggleLanguage(callback) {
   if (typeof callback === 'function') callback();
 }
 
-// হেডার ও লোগো আপডেট (স্মার্ট ফলব্যাক সহ)
+// হেডার ও লোগো রেন্ডারিং (স্মার্ট ফলব্যাক)
 function updateHeaderBrand(data) {
   const nameEl = document.getElementById('txt-cafe-name');
   if (nameEl) nameEl.innerText = data.name || 'TableMaster Pro';
@@ -181,12 +195,12 @@ function updateHeaderBrand(data) {
     if (data.logo && data.logo.trim() !== '') {
       logoContainer.innerHTML = `<img src="${data.logo}" style="width:100%;height:100%;object-fit:cover;" alt="Logo">`;
     } else {
-      logoContainer.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Logo">`;
+      logoContainer.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Default Logo">`;
     }
   }
 }
 
-// মডাল শীট কন্ট্রোল
+// মডাল শীট ইউটিলিটি
 function openSheet(title, html) {
   const tEl = document.getElementById('sheet-title');
   const bEl = document.getElementById('sheet-body');
