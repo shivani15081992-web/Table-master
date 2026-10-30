@@ -133,6 +133,7 @@
 
 <script>
 let selectedPlatformFilter = 'All';
+let activeCafeId = '';
 
 function handleLogout() {
   if (confirm("Log out from Online Portals?")) {
@@ -153,7 +154,6 @@ function renderPlatforms() {
   const orders = (data.orders || []).filter(o => o.status === 'completed');
   const payouts = data.platformPayouts || [];
 
-  // Update dropdown filter
   const filterSelect = document.getElementById('platform-filter-select');
   filterSelect.innerHTML = `<option value="All" ${selectedPlatformFilter==='All'?'selected':''}>-- All Delivery Channels --</option>` +
     platforms.map(p => `<option value="${p.id}" ${selectedPlatformFilter===p.id?'selected':''}>${p.name}</option>`).join('');
@@ -163,7 +163,6 @@ function renderPlatforms() {
     displayedPlatforms = platforms.filter(p => p.id === selectedPlatformFilter);
   }
 
-  // Calculate platform financial stats
   const stats = displayedPlatforms.map(p => {
     const pOrders = orders.filter(o => o.tableId === p.id || o.tableId === 'platform_' + p.id);
     const grossSales = pOrders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -208,7 +207,6 @@ function renderPlatforms() {
     `).join('');
   }
 
-  // Online orders list
   let filteredOnlineOrders = orders.filter(o => o.tableId && (o.tableId.startsWith('plt_') || o.tableId.startsWith('platform_')));
   if (selectedPlatformFilter !== 'All') {
     filteredOnlineOrders = filteredOnlineOrders.filter(o => o.tableId === selectedPlatformFilter || o.tableId === 'platform_' + selectedPlatformFilter);
@@ -235,7 +233,6 @@ function renderPlatforms() {
     }).join('');
   }
 
-  // Settlement Logs
   const payoutsTbody = document.getElementById('payouts-table-body');
   let filteredPayouts = payouts;
   if (selectedPlatformFilter !== 'All') {
@@ -266,39 +263,62 @@ function openAddPlatformModal() {
     <label>Commission Percentage (%)</label>
     <input type="number" id="plt-comm" placeholder="e.g. 20" step="0.1">
 
-    <button class="btn-primary" onclick="saveNewPlatformPartner()">Save Partner</button>
+    <button class="btn-primary" id="btn-save-plt" onclick="saveNewPlatformPartner()">Save Partner</button>
   `;
   openSheet("Add Delivery Partner", form);
 }
 
-function saveNewPlatformPartner() {
-  const data = window.getData();
+async function saveNewPlatformPartner() {
+  if (!activeCafeId || !db) return;
   const name = document.getElementById('plt-name').value.trim();
   const comm = parseFloat(document.getElementById('plt-comm').value) || 0;
+  const btn = document.getElementById('btn-save-plt');
 
   if (!name) {
     alert("Please enter a valid platform name!");
     return;
   }
 
-  if (!data.platforms) data.platforms = [];
-  data.platforms.push({
-    id: 'plt_' + Date.now(),
-    name: name,
-    commissionRate: comm
-  });
+  if (btn) { btn.disabled = true; btn.innerText = "Saving..."; }
 
-  window.cloudSave();
-  closeSheet();
-  renderPlatforms();
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const platforms = cData.platforms || [];
+    platforms.push({
+      id: 'plt_' + Date.now(),
+      name: name,
+      commissionRate: comm
+    });
+
+    await cafeRef.update({ platforms });
+    closeSheet();
+    renderPlatforms();
+  } catch(err) {
+    alert("Failed to save partner: " + err.message);
+    if (btn) { btn.disabled = false; btn.innerText = "Save Partner"; }
+  }
 }
 
-function deletePlatformPartner(pId) {
-  const data = window.getData();
+async function deletePlatformPartner(pId) {
+  if (!activeCafeId || !db) return;
   if (!confirm("Are you sure you want to remove this delivery partner?")) return;
-  data.platforms = (data.platforms || []).filter(p => p.id !== pId);
-  window.cloudSave();
-  renderPlatforms();
+
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const platforms = (cData.platforms || []).filter(p => p.id !== pId);
+    await cafeRef.update({ platforms });
+    renderPlatforms();
+  } catch(err) {
+    alert("Failed to delete partner: " + err.message);
+  }
 }
 
 function openRecordPayoutModal(pId, pName) {
@@ -311,50 +331,73 @@ function openRecordPayoutModal(pId, pName) {
     <label>Reference / Note (UTR / Bank details)</label>
     <input type="text" id="pay-note" placeholder="e.g. Weekly settlement via HDFC">
 
-    <button class="btn-primary" onclick="savePlatformSettlement('${pId}', '${pName}')">Save Settlement Log</button>
+    <button class="btn-primary" id="btn-save-payout" onclick="savePlatformSettlement('${pId}', '${pName}')">Save Settlement Log</button>
   `;
   openSheet("Record Settlement Payout", form);
 }
 
-function savePlatformSettlement(pId, pName) {
-  const data = window.getData();
+async function savePlatformSettlement(pId, pName) {
+  if (!activeCafeId || !db) return;
   const amt = parseFloat(document.getElementById('pay-amt').value);
   const note = document.getElementById('pay-note').value.trim();
+  const btn = document.getElementById('btn-save-payout');
 
   if (!amt || isNaN(amt) || amt <= 0) {
     alert("Please enter a valid settlement amount!");
     return;
   }
 
-  if (!data.platformPayouts) data.platformPayouts = [];
-  data.platformPayouts.unshift({
-    id: 'payout_' + Date.now(),
-    platformId: pId,
-    platformName: pName,
-    amount: amt,
-    note: note,
-    date: window.todayStr()
-  });
+  if (btn) { btn.disabled = true; btn.innerText = "Saving..."; }
 
-  window.cloudSave();
-  closeSheet();
-  renderPlatforms();
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const platformPayouts = cData.platformPayouts || [];
+    platformPayouts.unshift({
+      id: 'payout_' + Date.now(),
+      platformId: pId,
+      platformName: pName,
+      amount: amt,
+      note: note,
+      date: window.todayStr()
+    });
+
+    await cafeRef.update({ platformPayouts });
+    closeSheet();
+    renderPlatforms();
+  } catch(err) {
+    alert("Failed to save settlement: " + err.message);
+    if (btn) { btn.disabled = false; btn.innerText = "Save Settlement Log"; }
+  }
 }
 
-function deletePayoutRecord(id) {
-  const data = window.getData();
+async function deletePayoutRecord(id) {
+  if (!activeCafeId || !db) return;
   if (!confirm("Delete this settlement payout log?")) return;
-  data.platformPayouts = (data.platformPayouts || []).filter(p => p.id !== id);
-  window.cloudSave();
-  renderPlatforms();
+
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const platformPayouts = (cData.platformPayouts || []).filter(p => p.id !== id);
+    await cafeRef.update({ platformPayouts });
+    renderPlatforms();
+  } catch(err) {
+    alert("Failed to delete payout: " + err.message);
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
-      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) {
-        bindCafeCloudListener(cafeId, renderPlatforms);
+      activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (activeCafeId) {
+        bindCafeCloudListener(activeCafeId, renderPlatforms);
       } else {
         window.location.href = 'index.html';
       }
