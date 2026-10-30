@@ -117,6 +117,7 @@
 
 <script>
 let selectedCategory = 'All';
+let activeCafeId = '';
 
 function handleLogout() {
   if (confirm("Log out from Expenses Terminal?")) {
@@ -151,11 +152,9 @@ function renderExpenses() {
   const today = window.todayStr();
   const allExpenses = data.expenses || [];
   
-  // Calculate Today's Spend
   const todaySpend = allExpenses.filter(e => e.date === today).reduce((sum, e) => sum + (e.amount || 0), 0);
   document.getElementById('val-today-spend').innerText = `₹ ${todaySpend.toFixed(2)}`;
 
-  // Filter List
   let list = [...allExpenses];
   if (selectedCategory !== 'All') {
     list = list.filter(e => e.category === selectedCategory);
@@ -198,50 +197,73 @@ function openAddExpenseModal() {
     <label>Amount Spent (₹)</label>
     <input type="number" id="exp-amt" placeholder="e.g. 1200" step="0.01">
 
-    <button class="btn-primary" onclick="saveNewExpenseEntry()">Save Expense Entry</button>
+    <button class="btn-primary" id="btn-save-exp" onclick="saveNewExpenseEntry()">Save Expense Entry</button>
   `;
   openSheet("Add Expense Entry", form);
 }
 
-function saveNewExpenseEntry() {
-  const data = window.getData();
+async function saveNewExpenseEntry() {
+  if (!activeCafeId || !db) return;
   const cat = document.getElementById('exp-cat').value;
   const desc = document.getElementById('exp-desc').value.trim();
   const amt = parseFloat(document.getElementById('exp-amt').value);
+  const btn = document.getElementById('btn-save-exp');
 
   if (!desc || isNaN(amt) || amt <= 0) {
     alert("Please enter valid expense description and amount!");
     return;
   }
 
-  if (!data.expenses) data.expenses = [];
-  data.expenses.unshift({
-    id: 'exp_' + Date.now(),
-    category: cat,
-    desc: desc,
-    amount: amt,
-    date: window.todayStr()
-  });
+  if (btn) { btn.disabled = true; btn.innerText = "Saving..."; }
 
-  window.cloudSave();
-  closeSheet();
-  renderExpenses();
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const expenses = cData.expenses || [];
+    expenses.unshift({
+      id: 'exp_' + Date.now(),
+      category: cat,
+      desc: desc,
+      amount: amt,
+      date: window.todayStr()
+    });
+
+    await cafeRef.update({ expenses });
+    closeSheet();
+    renderExpenses();
+  } catch(err) {
+    alert("Failed to save expense: " + err.message);
+    if (btn) { btn.disabled = false; btn.innerText = "Save Expense Entry"; }
+  }
 }
 
-function deleteExpenseEntry(id) {
-  const data = window.getData();
+async function deleteExpenseEntry(id) {
+  if (!activeCafeId || !db) return;
   if (!confirm("Are you sure you want to delete this expense record?")) return;
-  data.expenses = (data.expenses || []).filter(e => e.id !== id);
-  window.cloudSave();
-  renderExpenses();
+
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const expenses = (cData.expenses || []).filter(e => e.id !== id);
+    await cafeRef.update({ expenses });
+    renderExpenses();
+  } catch(err) {
+    alert("Failed to delete expense: " + err.message);
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
-      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) {
-        bindCafeCloudListener(cafeId, renderExpenses);
+      activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (activeCafeId) {
+        bindCafeCloudListener(activeCafeId, renderExpenses);
       } else {
         window.location.href = 'index.html';
       }
