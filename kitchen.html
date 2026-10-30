@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js"></script>
 <script src="shared.js"></script>
 </head>
 <body>
@@ -83,7 +84,7 @@ function renderKitchen() {
   const liveKOT = (data.orders || []).filter(o => o.status === 'preparing');
   document.getElementById('kot-count-live').innerText = `${liveKOT.length} Active`;
 
-  // নতুন KOT ঢুকলেই কিচেন বেল (Double Ding) বেজে উঠবে
+  // নতুন KOT আসলে কিচেন বেল (Double Ding) বাজবে
   if (lastKnownKOTCount !== -1 && liveKOT.length > lastKnownKOTCount) {
     window.playAlertTone('kot');
   }
@@ -145,6 +146,8 @@ window.addEventListener('DOMContentLoaded', () => {
       currentCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
       if (currentCafeId) {
         bindCafeCloudListener(currentCafeId, renderKitchen);
+        // কিচেনের ফোনে ব্যাকগ্রাউন্ড পুশ পারমিশন সক্রিয় করা
+        window.enableFCMNotifications('kitchen');
       } else {
         window.location.href = 'staff.html';
       }
