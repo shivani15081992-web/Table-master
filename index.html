@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>TableMaster Pro — Cloud Restaurant Management</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --reserved: #8b5cf6;
+  --radius-xl: 18px;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06);
+  --shadow-md: 0 8px 24px -4px rgba(15,23,42,0.08);
+  --gold: #c9a961;
+  --gold-dark: #8b6d38;
+  --gold-light: #e8d5a1;
+  --cream: #faf7f0;
+  --cream-border: #ebe3d2;
+  --charcoal: #1a1a1a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text-main); font-size: 14px; min-height: 100dvh; display: flex; flex-direction: column; overflow-x: hidden; }
+
+.auth-wrap { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(ellipse at top left, #1e293b 0%, #0f172a 60%), #0f172a; }
+.auth-card { background: #fff; padding: 28px 22px; border-radius: 20px; width: 100%; max-width: 420px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); }
+.auth-brand { text-align: center; margin-bottom: 20px; }
+.auth-brand .icon-logo { width: 56px; height: 56px; margin: 0 auto 10px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: #1a1a1a; border: 1.5px solid var(--gold); box-shadow: 0 4px 14px rgba(201,169,97,0.3); }
+.auth-tabs { display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 12px; margin-bottom: 18px; }
+.auth-tab { flex: 1; padding: 8px; border-radius: 8px; border: none; background: transparent; color: var(--text-muted); font-weight: 700; font-size: 13px; cursor: pointer; }
+.auth-tab.active { background: #fff; color: var(--primary); box-shadow: var(--shadow-sm); }
+
+.topbar { position: sticky; top: 0; z-index: 100; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top)); }
+.brand-box { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 16px; color: var(--primary); }
+.brand-icon { width: 34px; height: 34px; background: #1a1a1a; border: 1px solid var(--gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.top-actions { display: flex; align-items: center; gap: 6px; }
+.sync-badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.sync-badge.online { background: #dcfce7; color: #15803d; }
+.sync-badge.syncing { background: #fef3c7; color: #b45309; }
+.role-badge { font-size: 10.5px; padding: 3px 7px; border-radius: 6px; font-weight: 800; background: #ede9fe; color: #6d28d9; text-transform: uppercase; }
+.lang-toggle-btn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 16px; border: 1px solid var(--border); background: #fff; font-size: 11px; font-weight: 700; color: var(--primary); cursor: pointer; }
+.btn-icon { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: #fff; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; }
+
+.main-wrapper { flex: 1; padding: 14px; padding-bottom: calc(90px + env(safe-area-inset-bottom)); max-width: 900px; margin: 0 auto; width: 100%; }
+.tm-card { background: var(--surface); border-radius: var(--radius-xl); padding: 16px; box-shadow: var(--shadow-md); border: 1px solid rgba(226, 232, 240, 0.8); margin-bottom: 14px; }
+.tm-card-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-weight: 700; font-size: 14.5px; }
+
+.quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+@media (min-width: 600px) { .quick-grid { grid-template-columns: repeat(4, 1fr); } }
+.quick-tile { background: var(--surface); border-radius: var(--radius-lg); padding: 14px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; cursor: pointer; border-left: 4px solid var(--primary); }
+.quick-tile.amber { border-left-color: var(--warning); }
+.quick-tile.emerald { border-left-color: var(--success); }
+.quick-tile.purple { border-left-color: #8b5cf6; }
+.tile-bubble { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary); }
+.quick-tile.amber .tile-bubble { background: #fffbeb; color: var(--warning); }
+.quick-tile.emerald .tile-bubble { background: #ecfdf5; color: var(--success); }
+.quick-tile.purple .tile-bubble { background: #f3e8ff; color: #8b5cf6; }
+.tile-title { font-weight: 700; font-size: 13.5px; }
+.tile-desc { font-size: 11px; color: var(--text-muted); }
+
+.table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.table-card { background: #fff; border: 2px solid var(--border); border-radius: var(--radius-md); padding: 12px 10px; text-align: center; cursor: pointer; position: relative; }
+.table-card.available { border-color: #a7f3d0; background: linear-gradient(180deg, #ecfdf5 0%, #fff 100%); }
+.table-card.occupied { border-color: #fde68a; background: linear-gradient(180deg, #fffbeb 0%, #fff 100%); }
+.table-card.reserved { border-color: #ddd6fe; background: linear-gradient(180deg, #f5f3ff 0%, #fff 100%); }
+.table-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; }
+.table-card.available .table-dot { background: var(--success); }
+.table-card.occupied .table-dot { background: var(--warning); animation: pulse 1.4s infinite; }
+.table-card.reserved .table-dot { background: var(--reserved); }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+.cat-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; scrollbar-width: none; }
+.cat-scroll::-webkit-scrollbar { display: none; }
+.cat-btn { padding: 6px 14px; border-radius: 99px; background: #f1f5f9; border: none; font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+.cat-btn.active { background: var(--primary-gradient); color: #fff; }
+.dish-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.dish-card { background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius-md); padding: 10px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; min-height: 80px; }
+.dish-name { font-weight: 600; font-size: 13px; line-height: 1.3; }
+.dish-price { font-weight: 800; color: var(--primary); margin-top: 4px; font-size: 13.5px; }
+
+.floating-cart { position: fixed; bottom: calc(64px + env(safe-area-inset-bottom)); left: 12px; right: 12px; background: var(--text-main); color: #fff; border-radius: 14px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 10px 25px rgba(15,23,42,0.3); z-index: 95; }
+.btn-place { background: var(--success); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.qty-ctrl-box { display: flex; align-items: center; gap: 6px; background: #f1f5f9; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border); }
+.qty-btn { background: #fff; border: 1px solid var(--border); width: 26px; height: 26px; border-radius: 4px; font-weight: 800; font-size: 14px; color: var(--primary); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.qty-display { font-size: 12.5px; font-weight: 700; min-width: 18px; text-align: center; }
+
+.profit-banner { padding: 16px; border-radius: var(--radius-lg); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.profit-banner.profit { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #059669; }
+.profit-banner.loss { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-left: 4px solid #dc2626; }
+.profit-banner .label { font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.profit-banner.profit .label { color: #047857; }
+.profit-banner.loss .label { color: #b91c1c; }
+.profit-banner .val { font-size: 26px; font-weight: 800; }
+.profit-banner.profit .val { color: #065f46; }
+.profit-banner.loss .val { color: #991b1b; }
+.profit-breakdown { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; }
+.profit-breakdown div { display: flex; flex-direction: column; }
+.profit-breakdown span:first-child { color: #64748b; font-weight: 700; font-size: 9.5px; text-transform: uppercase; }
+.profit-breakdown span:last-child { font-size: 13.5px; font-weight: 800; margin-top: 1px; }
+
+.filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.filter-chip { padding: 5px 12px; border-radius: 99px; background: #f1f5f9; border: none; font-size: 11.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.filter-chip.active { background: var(--primary-gradient); color: #fff; }
+.custom-date-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bar-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.bar-label { flex: 0 0 38%; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { flex: 1; height: 7px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; background: var(--primary-gradient); }
+.bar-fill.green { background: linear-gradient(90deg, #10b981, #059669); }
+.bar-val { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; text-align: right; min-width: 65px; }
+
+.table-responsive { width: 100%; overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.data-table th, .data-table td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; }
+.data-table th { background: #f8fafc; font-weight: 700; color: var(--text-muted); font-size: 10.5px; text-transform: uppercase; }
+.badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.badge.cat-raw { background: #fee2e2; color: #b91c1c; }
+.badge.cat-sal { background: #e0e7ff; color: #4338ca; }
+
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(16px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 6px 2px calc(6px + env(safe-area-inset-bottom)); }
+.bar-item { display: flex; flex-direction: column; align-items: center; gap: 2px; background: transparent; border: none; font-size: 9.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 8px; flex: 1; }
+.bar-item.active { color: var(--primary); background: #eff6ff; }
+.bar-item svg { width: 18px; height: 18px; }
+
+.dev-footer { text-align: center; padding: 14px 10px; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); margin-top: 20px; }
+.dev-footer b { color: var(--primary); font-weight: 800; }
+
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 200; }
+.sheet-backdrop.active { display: flex; }
+.sheet-modal { background: #fff; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 18px; max-height: 85dvh; overflow-y: auto; display: flex; flex-direction: column; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.sheet-title { font-size: 16px; font-weight: 800; }
+.btn-x { background: #f1f5f9; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; cursor: pointer; }
+
+input, select, textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13.5px; margin-bottom: 10px; background: #fff; }
+label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+.btn-primary { width: 100%; background: var(--primary-gradient); color: #fff; border: none; padding: 11px; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.btn-danger { background: var(--danger); color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-sm-outline { border: 1px solid var(--border); background: #fff; padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; cursor: pointer; }
+
+.receipt-paper { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; background: #fff; color: #000; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 8px; width: 280px; margin: 0 auto; text-align: left; line-height: 1.35; }
+.receipt-paper hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+.receipt-paper .c { text-align: center; }
+.receipt-paper .qr-img { width: 100px; height: 100px; display: block; margin: 0 auto; }
+.receipt-logo { max-width: 80px; max-height: 50px; display: block; margin: 0 auto 4px; filter: grayscale(100%); }
+
+@media print {
+  body * { visibility: hidden; }
+  #print-area, #print-area * { visibility: visible; }
+  #print-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; display: block !important; }
+  #print-area .receipt-paper { width: 100% !important; max-width: 80mm !important; border: none !important; margin: 0 auto !important; }
+  #print-area .table-qr-card { width: 100% !important; max-width: 90mm !important; border: 1.5px solid #333 !important; page-break-inside: avoid; margin: 4mm auto !important; padding: 8mm !important; }
+  #print-area .qr-big-img { width: 55mm !important; height: 55mm !important; }
+  @page { margin: 0; }
+}
+#print-area { display: none; }
+
+.table-qr-card { width: 100%; max-width: 320px; background: #fff; border: 2px dashed #94a3b8; border-radius: 12px; padding: 16px; margin: 0 auto; text-align: center; }
+.qr-cafe-name { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
+.qr-table-name { font-size: 24px; font-weight: 800; color: #2563eb; margin-bottom: 10px; }
+.qr-big-img { width: 200px; height: 200px; display: block; margin: 0 auto 10px; image-rendering: pixelated; }
+.qr-instructions { background: #f8fafc; border-radius: 8px; padding: 8px 10px; text-align: left; line-height: 1.5; font-size: 10.5px; border: 1px solid #e2e8f0; }
+
+.backup-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+.bill-item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+
+/* Customer Self-Order Mode */
+#customer-screen { display: none; min-height: 100dvh; background: var(--cream); flex-direction: column; }
+body.customer-mode { background: var(--cream); }
+.customer-hero {
+  background: radial-gradient(circle at 15% 10%, rgba(201,169,97,0.15) 0%, transparent 45%),
+    linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #fff; padding: 28px 20px 24px; padding-top: calc(28px + env(safe-area-inset-top)); text-align: center; position: sticky; top: 0; z-index: 50; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.customer-logo-circle { width: 58px; height: 58px; margin: 0 auto 12px; border-radius: 50%; border: 1.5px solid rgba(201,169,97,0.5); background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; }
+.customer-cafe-name { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 600; background: linear-gradient(135deg, #e8d5a1, #c9a961); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.customer-divider { display: flex; align-items: center; gap: 10px; margin: 10px auto 12px; max-width: 180px; color: #c9a961; font-size: 8px; }
+.customer-divider span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(201,169,97,0.6), transparent); }
+.customer-table-badge { display: inline-block; padding: 5px 16px; border: 1px solid rgba(201,169,97,0.4); border-radius: 100px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #e8d5a1; font-weight: 600; }
+.customer-main { flex: 1; padding: 16px; padding-bottom: 110px; max-width: 800px; margin: 0 auto; width: 100%; }
+.customer-search-wrap { position: relative; margin-bottom: 14px; }
+.customer-search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #8b6d38; }
+.customer-search-input { width: 100%; padding: 12px 14px 12px 40px; background: #fff; border: 1px solid var(--cream-border); border-radius: 100px; font-size: 13px; color: #1a1a1a; margin: 0; }
+.customer-cats-wrap { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 14px; scrollbar-width: none; }
+.customer-cat-btn { padding: 8px 18px; border-radius: 100px; background: transparent; border: 1px solid #d4c5a8; color: #6b5540; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.customer-cat-btn.active { background: #1a1a1a; color: #e8d5a1; border-color: #1a1a1a; }
+.customer-dish-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 600px) { .customer-dish-grid { grid-template-columns: repeat(2, 1fr); } }
+.customer-dish-card { background: #fff; border-radius: 14px; padding: 14px 16px; border: 1px solid var(--cream-border); box-shadow: 0 1px 4px rgba(139,109,56,0.06); cursor: pointer; }
+.cdc-category { font-size: 9px; font-weight: 700; color: #8b6d38; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
+.cdc-name { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 600; color: #1a1a1a; }
+.cdc-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.cdc-price { font-size: 15px; font-weight: 800; color: #8b6d38; }
+.cdc-add-btn { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #1a1a1a, #2d2d2d); color: #e8d5a1; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.customer-cart-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 60; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, transparent 0%, var(--cream) 40%); }
+.customer-cart { background: linear-gradient(135deg, #1a1a1a, #2d2d2d); color: #fff; border-radius: 18px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(201,169,97,0.3); }
+.ccb-btn { background: linear-gradient(135deg, #c9a961, #e8d5a1); color: #1a1a1a; border: none; border-radius: 12px; padding: 10px 20px; font-weight: 800; font-size: 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="icon-logo">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8d5a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+        </svg>
+      </div>
+      <h2 style="font-size:20px;font-weight:800;color:#0f172a">TableMaster Pro</h2>
+      <p style="font-size:11.5px;color:var(--text-muted);margin-top:2px">Enterprise Cloud POS & Table Management</p>
+    </div>
+    <div id="firebase-error-box" style="display:none; background:#fef2f2; border:1px solid #fecaca; color:#dc2626; padding:10px; border-radius:8px; font-size:12px; font-weight:600; margin-bottom:15px; text-align:center;">
+      ⚠️ Firebase failed to load! Please check your connection or whitelist the domain.
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" type="button" onclick="switchAuthTab('login')" id="tab-login">Login</button>
+      <button class="auth-tab" type="button" onclick="switchAuthTab('register')" id="tab-register">Register Cafe</button>
+    </div>
+    <form id="form-login" onsubmit="handleLogin(event)">
+      <label>Email or Staff Username</label>
+      <input id="log-email" type="text" required placeholder="owner@cafe.com OR rohan" autocomplete="username">
+      <label>Password</label>
+      <input id="log-pass" type="password" required placeholder="••••••••" autocomplete="current-password">
+      <button type="submit" class="btn-primary" style="margin-top:6px" id="btn-login-submit">Sign In →</button>
+    </form>
+    <form id="form-register" style="display:none" onsubmit="handleRegister(event)">
+      <label>Restaurant / Cafe Name</label>
+      <input id="reg-name" required placeholder="e.g. Royal Cafe">
+      <label>Owner Name</label>
+      <input id="reg-owner" required placeholder="Full Name">
+      <label>Phone Number</label>
+      <input id="reg-phone" required placeholder="+91 XXXXX XXXXX">
+      <label>Email Address</label>
+      <input id="reg-email" type="email" required placeholder="owner@cafe.com" autocomplete="email">
+      <label>Password (Min 6 chars)</label>
+      <input id="reg-pass" type="password" required minlength="6" placeholder="Password" autocomplete="new-password">
+      <label>Master PIN (4 Digits)</label>
+      <input id="reg-pin" type="password" pattern="[0-9]{4}" required placeholder="e.g. 1234">
+      <button type="submit" class="btn-primary" style="margin-top:6px" id="btn-reg-submit">Register & Launch My Cafe →</button>
+    </form>
+    <div style="text-align:center;font-size:10.5px;color:#94a3b8;margin-top:14px;">
+      Enterprise POS & Cloud Infrastructure
+    </div>
+  </div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div id="app-container" style="display:none;">
+  <header class="topbar">
+    <div class="brand-box">
+      <div class="brand-icon" id="header-logo-container">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8d5a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+        </svg>
+      </div>
+      <div>
+        <span id="txt-cafe-name">TableMaster Pro</span>
+        <div id="active-user-role" class="role-badge" style="display:inline-block;margin-left:4px;">OWNER</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="sync-badge syncing" id="sync-status">🔄 Connecting...</div>
+      <button class="lang-toggle-btn" onclick="toggleLanguage()" id="btn-lang-toggle">🌐 <span>English</span></button>
+      <button class="btn-icon owner-only" id="btn-staff-header" onclick="openStaffModal()" title="Staff Switch / PIN" style="display:none;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></button>
+      <button class="btn-icon owner-only" id="btn-settings-header" onclick="openSettingsSheet()" title="Settings" style="display:none;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00-.33-1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
+      <button class="btn-icon" onclick="handleLogout()" title="Logout" style="color:var(--danger)"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </header>
+  <main class="main-wrapper" id="main-view"></main>
+  <nav class="bottom-bar" id="app-bottom-bar"></nav>
+</div>
+
+<!-- CUSTOMER SCREEN -->
+<div id="customer-screen">
+  <header class="customer-hero">
+    <div class="customer-logo-circle" id="customer-logo-wrap">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+      </svg>
+    </div>
+    <h1 class="customer-cafe-name" id="customer-cafe-name">Restaurant</h1>
+    <div class="customer-divider"><span></span><i>◆</i><span></span></div>
+    <div class="customer-table-badge" id="customer-table-name">WELCOME</div>
+  </header>
+  <main id="customer-main" class="customer-main"></main>
+  <div id="customer-cart-bar" class="customer-cart-bar"></div>
+</div>
+
+<!-- MODAL SHEET -->
+<div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
+  <div class="sheet-modal" id="sheet-modal">
+    <div class="sheet-head">
+      <div class="sheet-title" id="sheet-title">Title</div>
+      <button class="btn-x" onclick="closeSheet()">✕</button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<div id="print-area"></div>
+
+<script>
+/* ==========================================================================
+   NEW FIREBASE CONFIGURATION
+   ========================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDfDz5MnOvokr_MQH_sG5FxkHUGVphuOLU",
+  authDomain: "the-table-master.firebaseapp.com",
+  projectId: "the-table-master",
+  storageBucket: "the-table-master.firebasestorage.app",
+  messagingSenderId: "135597759379",
+  appId: "1:135597759379:web:b5233aaa5dceec27dfa666",
+  measurementId: "G-VWY05MGFR5"
+};
+
+let auth = null;
+let db = null;
+let currentCafeListener = null;
+
+function initFirebaseApp() {
+  try {
+    if (typeof firebase !== 'undefined') {
+      if (!firebase.apps || !firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      auth = firebase.auth();
+      db = firebase.firestore();
+      return true;
+    } else {
+      const box = document.getElementById('firebase-error-box');
+      if (box) box.style.display = 'block';
+      return false;
+    }
+  } catch(e) {
+    console.warn('Firebase init error:', e);
+    const box = document.getElementById('firebase-error-box');
+    if (box) box.style.display = 'block';
+    return false;
+  }
+}
+
+window.todayStr = function() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
+};
+
+function createNewCafeTemplate(cafeId, ownerUid, name, owner, phone, pin) {
+  return {
+    cafeId, ownerUid, name, ownerName: owner, phone,
+    address: 'City, State', masterPin: pin, upi: 'pay@upi', googleReview: '',
+    gstRate: 0, serviceRate: 0, logo: '',
+    tables: [
+      { id: 't1', name: 'T-01', seats: 2, status: 'available', booking: null },
+      { id: 't2', name: 'T-02', seats: 4, status: 'available', booking: null },
+      { id: 't3', name: 'T-03', seats: 4, status: 'available', booking: null },
+      { id: 't4', name: 'T-04', seats: 6, status: 'available', booking: null }
+    ],
+    menu: [
+      { id: 'm1', name: 'Special Chicken Biryani', category: 'Main Course', price: 190 },
+      { id: 'm2', name: 'Cold Coffee with Ice Cream', category: 'Beverages', price: 90 },
+      { id: 'm3', name: 'Crispy French Fries', category: 'Snacks', price: 80 }
+    ],
+    platforms: [
+      { id: 'plt_swiggy', name: 'Swiggy', commissionRate: 20 },
+      { id: 'plt_zomato', name: 'Zomato', commissionRate: 22 }
+    ],
+    platformPayouts: [], orders: [], expenses: [], staff: []
+  };
+}
+
+window.RESTAURANT_DATA = {
+  cafeId: 'default_cafe', name: 'TableMaster Bistro', phone: '', address: '',
+  masterPin: '1234', gstRate: 0, serviceRate: 0,
+  tables: [{ id: 't1', name: 'T-01', seats: 4, status: 'available', booking: null }],
+  menu: [{ id: 'm1', name: 'Special Chicken Biryani', category: 'Main Course', price: 190 }],
+  platforms: [
+    { id: 'plt_swiggy', name: 'Swiggy', commissionRate: 20 },
+    { id: 'plt_zomato', name: 'Zomato', commissionRate: 22 }
+  ],
+  platformPayouts: [], orders: [], expenses: [], staff: []
+};
+
+window.CURRENT_USER_ROLE = sessionStorage.getItem('tmpro_role_mode') || 'owner';
+window.getData = function() { return window.RESTAURANT_DATA || {}; };
+
+function bindCafeCloudListener(cafeId) {
+  if (!db || !cafeId) return;
+  if (currentCafeListener) { try { currentCafeListener(); } catch(e){} }
+
+  const badge = document.getElementById('sync-status');
+  if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '🔄 Connecting...'; }
+
+  currentCafeListener = db.collection("cafes").doc(cafeId).onSnapshot((docSnap) => {
+    if (docSnap.exists) {
+      window.RESTAURANT_DATA = Object.assign({}, window.RESTAURANT_DATA, docSnap.data());
+      window.RESTAURANT_DATA.cafeId = cafeId;
+      try { localStorage.setItem('tmpro_cafe_cache_' + cafeId, JSON.stringify(window.RESTAURANT_DATA)); } catch(e){}
+    }
+    if (badge) { badge.className = 'sync-badge online'; badge.innerHTML = '☁️ Online'; }
+    renderCurrentView();
+  }, (err) => {
+    console.warn("Firestore sync warning:", err);
+    if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '⚡ Local Mode'; }
+    renderCurrentView();
+  });
+}
+
+window.cloudSave = function() {
+  const data = window.getData();
+  if (!data || !data.cafeId || !db) return;
+  try { localStorage.setItem('tmpro_cafe_cache_' + data.cafeId, JSON.stringify(data)); } catch(e){}
+  const badge = document.getElementById('sync-status');
+  if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '🔄 Syncing...'; }
+
+  db.collection("cafes").doc(data.cafeId).set(data, { merge: true }).then(() => {
+    if (badge) { badge.className = 'sync-badge online'; badge.innerHTML = '☁️ Online'; }
+  }).catch(err => {
+    console.error("Cloud save failed:", err);
+    if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '⚠️ Error'; }
+  });
+};
+
+/* ==========================================================================
+   AUTHENTICATION
+   ========================================================================== */
+function checkAuth() {
+  if (!auth) { setTimeout(checkAuth, 500); return; }
+
+  auth.onAuthStateChanged(async (user) => {
+    if (window.IS_CUSTOMER_MODE) return;
+
+    if (user) {
+      let cafeId = 'cafe_' + user.uid;
+      let userRole = 'owner';
+
+      try {
+        const userDoc = await db.collection("users").doc(user.uid).get();
+        if (userDoc.exists) {
+          const ud = userDoc.data();
+          cafeId = ud.cafeId || cafeId;
+          userRole = ud.role || 'owner';
+        }
+      } catch(e) { console.warn("User role fetch warning:", e.message); }
+
+      window.CURRENT_USER_ROLE = userRole;
+      sessionStorage.setItem('tmpro_role_mode', userRole);
+
+      const cached = localStorage.getItem('tmpro_cafe_cache_' + cafeId);
+      if (cached) {
+        try { window.RESTAURANT_DATA = JSON.parse(cached); } catch(e){}
+      }
+      window.RESTAURANT_DATA.cafeId = cafeId;
+
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app-container').style.display = 'block';
+
+      document.querySelectorAll('.owner-only').forEach(el => {
+        el.style.display = (userRole === 'owner') ? 'flex' : 'none';
+      });
+
+      bindCafeCloudListener(cafeId);
+      setupNavigation();
+      renderCurrentView();
+    } else {
+      if (currentCafeListener) { try { currentCafeListener(); } catch(e){} currentCafeListener = null; }
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('app-container').style.display = 'none';
+    }
+  });
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  if (!auth) { alert("⚠️ Firebase load error. Check internet connection."); return; }
+  let loginInput = document.getElementById('log-email').value.trim().toLowerCase();
+  const pass = document.getElementById('log-pass').value;
+  const btn = document.getElementById('btn-login-submit');
+  btn.disabled = true; btn.innerText = "Signing in...";
+
+  let targetEmail = loginInput.includes('@') ? loginInput : loginInput.replace(/\s+/g, '') + '@tablemaster.com';
+
+  try {
+    await auth.signInWithEmailAndPassword(targetEmail, pass);
+  } catch (err) {
+    if (!loginInput.includes('@') && (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found')) {
+      try {
+        const fallbackEmail = loginInput.replace(/\s+/g, '') + '@tablemaster.local';
+        await auth.signInWithEmailAndPassword(fallbackEmail, pass);
+        return;
+      } catch (fallbackErr) {
+        alert(currentLang === 'bn' ? "লগইন ব্যর্থ: ইউজারনেম অথবা পাসওয়ার্ড সঠিক নয়।" : "Login Failed: Invalid credentials.");
+      }
+    } else {
+      alert("Login Failed: " + err.message);
+    }
+  } finally {
+    btn.disabled = false; btn.innerText = "Sign In →";
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  if (!auth || !db) { alert("⚠️ Firebase not initialized."); return; }
+
+  const name = document.getElementById('reg-name').value.trim();
+  const owner = document.getElementById('reg-owner').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value.trim();
+  const pin = document.getElementById('reg-pin').value.trim();
+  const btn = document.getElementById('btn-reg-submit');
+
+  btn.disabled = true; btn.innerText = "Registering Cafe...";
+
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    const uid = cred.user.uid;
+    const cafeId = 'cafe_' + uid;
+
+    const newCafe = createNewCafeTemplate(cafeId, uid, name, owner, phone, pin);
+    window.RESTAURANT_DATA = newCafe;
+
+    await db.collection("cafes").doc(cafeId).set(newCafe);
+    localStorage.setItem('tmpro_cafe_cache_' + cafeId, JSON.stringify(newCafe));
+    alert(`✓ Registration Successful for "${name}"!`);
+  } catch (err) {
+    alert("Registration Error: " + err.message);
+  } finally {
+    btn.disabled = false; btn.innerText = "Register & Launch My Cafe →";
+  }
+}
+
+async function handleLogout() {
+  if (!confirm(currentLang === 'bn' ? 'লগআউট করতে চান?' : 'Log out from your Cafe account?')) return;
+  try {
+    window.CURRENT_USER_ROLE = 'owner';
+    sessionStorage.removeItem('tmpro_role_mode');
+    if (auth) await auth.signOut();
+  } catch (err) { console.error(err); }
+}
+
+/* ==========================================================================
+   DYNAMIC I18N (DEFAULT ENGLISH)
+   ========================================================================== */
+const I18N = {
+  en: {
+    navHome: "Home", navPOS: "Order", navKitchen: "Kitchen", navBills: "Bills", navPlatforms: "Online Portals", navExpenses: "Expenses", navReports: "Reports", navMenu: "Menu",
+    todaySales: "Today's Total Sales", totalOrders: "Today's Orders", activeKOT: "Active Kitchen KOT",
+    newOrder: "New Order (POS)", newOrderSub: "Take customer order", kitchenLive: "Kitchen Live", kitchenLiveSub: "orders preparing",
+    billsAndPrint: "Bills & Print", billsAndPrintSub: "UPI QR payment", reportsAndProfit: "Profit & Reports", reportsAndProfitSub: "Sales vs Expenses",
+    floorMap: "Floor Table Map", addTable: "+ Add Table", allQR: "📱 All QRs", seater: "Seater",
+    searchPlaceholder: "🔍 Search dishes or category...", selectDishWarning: "Please select a table or channel first!", selectedItems: "items selected",
+    confirmOrderKOT: "Confirm Order (Send KOT) →", orderConfirmation: "Order Confirmation & Quantities", table: "Channel / Table", subtotal: "Subtotal",
+    tax: "Tax / GST", serviceCharge: "Service Charge", grandTotal: "Total Due", sendToKitchen: "Send Order to Kitchen",
+    liveKitchenDisplay: "Live Kitchen Monitor", runningOrders: "running orders", noKOT: "No active orders in kitchen!", readyToServe: "Ready to Serve ✓",
+    markServed: "Mark as Served ✓", readyToServeHeader: "Ready to Serve",
+    billingHistory: "Bills Management", noBills: "No bills found for selected filter", printUPIReceipt: "Receipt / UPI QR",
+    digitalMenuCard: "Digital Menu Card", addNewDish: "+ Add New Item", dishName: "Dish Name", category: "Category", price: "Price (₹)",
+    save: "Save", delete: "Delete", confirmDelete: "Are you sure you want to delete this?", expenseTitle: "Add Expense", expenseDesc: "Expense Description",
+    amount: "Amount", restaurantSettings: "Restaurant Settings", restaurantName: "Restaurant Name", phone: "Phone Number", address: "Address",
+    upiId: "UPI ID (For Scan & Pay)", googleReviewUrl: "Google Review URL", gstRate: "GST Rate (%)", serviceRate: "Service Charge (%)",
+    uploadLogo: "Upload Restaurant Logo", printThermalReceipt: "Print Bill (Thermal Receipt)", scanToPay: "Scan to Pay via UPI",
+    reviewPrompt: "Leave us a review on Google", thankYou: "Thank you for dining with us! Visit again.", netProfit: "Net Profit", netLoss: "Net Loss",
+    sales: "Sales", expenses: "Expenses", filterToday: "Today", filterWeek: "This Week", filterMonth: "This Month", filterCustom: "Custom Date",
+    filterAll: "All Time", topSelling: "Top Selling Items", dailyBreakdown: "Daily Breakdown", exportCSV: "📥 Export CSV", date: "Date", profit: "Profit",
+    staffMgmt: "Staff & Role Switch", role: "Role", masterPinPrompt: "Enter 4-Digit Master PIN:",
+    onlinePlatformsTitle: "Online Partners Ledger", addPlatform: "+ Add Partner",
+    platformName: "Platform Name", commission: "Commission %", recordPayout: "Receive Settlement", totalGross: "Total Gross Value",
+    netPayable: "Net After Commission", received: "Received Payout", pendingDue: "Pending Due", filterPlatform: "Filter Channel",
+    allPlatforms: "All Delivery Channels", unPaidOnly: "Unpaid Only",
+    editBillNotice: "Delete or adjust unwanted items. The total bill will auto update.",
+    editItemsTitle: "Edit Items", newTotal: "New Total",
+    bookTable: "Book Table", reserve: "Reserve", bookInfo: "Booking Details", reservedStatus: "RESERVED",
+    customerName: "Customer Name", bookingTime: "Booking Time / Note", releaseBooking: "Release Booking",
+    editTable: "Edit Table"
+  },
+  bn: {
+    navHome: "হোম", navPOS: "অর্ডার", navKitchen: "কিচেন", navBills: "বিলিং", navPlatforms: "অনলাইন পোর্টাল", navExpenses: "খরচের খাতা", navReports: "রিপোর্ট", navMenu: "মেনু",
+    todaySales: "আজকের মোট বিক্রি", totalOrders: "আজকের মোট অর্ডার", activeKOT: "চলতি কিচেন KOT",
+    newOrder: "নতুন অর্ডার (POS)", newOrderSub: "কাস্টমার অর্ডার এন্ট্রি", kitchenLive: "কিচেন লাইভ", kitchenLiveSub: "টি অর্ডার তৈরি হচ্ছে",
+    billsAndPrint: "বিল ও প্রিন্ট", billsAndPrintSub: "QR দিয়ে UPI পেমেন্ট", reportsAndProfit: "লাভ-ক্ষতি ও রিপোর্ট", reportsAndProfitSub: "বিক্রি ও খরচের হিসাব",
+    floorMap: "ইন্টারেক্টিভ টেবিল ম্যাপ", addTable: "+ টেবিল যোগ", allQR: "📱 সব QR", seater: "সিটার",
+    searchPlaceholder: "🔍 খাবার বা মেনু সার্চ করুন...", selectDishWarning: "দয়া করে টেবিল অথবা অনলাইন চ্যানেল সিলেক্ট করুন!", selectedItems: "টি আইটেম সিলেক্টেড",
+    confirmOrderKOT: "অর্ডার নিশ্চিত করুন (KOT) →", orderConfirmation: "অর্ডার ও পরিমাণের তালিকা", table: "চ্যানেল / টেবিল", subtotal: "সাবটোটাল",
+    tax: "ট্যাক্স / GST", serviceCharge: "সার্ভিস চার্জ", grandTotal: "সর্বমোট দেয় টাকা", sendToKitchen: "রান্নাঘরে অর্ডার পাঠান (Send KOT)",
+    liveKitchenDisplay: "লাইভ কিচেন মনিটর (KOT)", runningOrders: "রানিং অর্ডার", noKOT: "কিচেনে কোনো পেন্ডিং অর্ডার নেই!", readyToServe: "খাবার প্রস্তুত (Ready) ✓",
+    markServed: "সার্ভ করা হয়েছে (Served) ✓", readyToServeHeader: "সার্ভ করার জন্য প্রস্তুত",
+    billingHistory: "বিলিং ও হিসেব খাতা", noBills: "নির্দিষ্ট ফিল্টারে কোনো বিল পাওয়া যায়নি", printUPIReceipt: "রসিদ / UPI QR",
+    digitalMenuCard: "ডিজিটাল মেনু কার্ড", addNewDish: "+ নতুন খাবার যোগ", dishName: "খাবারের নাম", category: "ক্যাটাগরি", price: "মূল্য (টাকা)",
+    save: "সংরক্ষণ করুন", delete: "মুছুন", confirmDelete: "আপনি কি এটি মুছে ফেলতে চান?", expenseTitle: "খরচ এন্ট্রি", expenseDesc: "খরচের বিবরণ",
+    amount: "টাকা", restaurantSettings: "রেস্তোরাঁ সেটিংস", restaurantName: "রেস্তোরাঁর নাম", phone: "মোবাইল নম্বর", address: "ঠিকানা",
+    upiId: "UPI ID", googleReviewUrl: "গুগল রিভিউ লিঙ্ক", gstRate: "GST রেট (%)", serviceRate: "সার্ভিস চার্জ (%)",
+    uploadLogo: "রেস্তোরাঁর লোগো আপলোড", printThermalReceipt: "বিল প্রিন্ট করুন", scanToPay: "Scan to Pay via UPI",
+    reviewPrompt: "গুগলে আপনার মূল্যবান রিভিউ দিন", thankYou: "আমাদের এখানে আসার জন্য ধন্যবাদ! আবার আসবেন।", netProfit: "নিট লাভ", netLoss: "নিট ক্ষতি",
+    sales: "মোট বিক্রি", expenses: "মোট খরচ", filterToday: "আজকে", filterWeek: "এই সপ্তাহ", filterMonth: "এই মাস", filterCustom: "কাস্টম তারিখ",
+    filterAll: "সব সময়", topSelling: "জনপ্রিয় খাবার", dailyBreakdown: "দৈনিক তালিকা", exportCSV: "📥 CSV ডাউনলোড", date: "তারিখ", profit: "লাভ",
+    staffMgmt: "স্টাফ ও ভূমিকা", role: "দায়িত্ব", masterPinPrompt: "৪-ডিজিট মাস্টার পিন দিন:",
+    onlinePlatformsTitle: "অনলাইন পার্টনার লেজার", addPlatform: "+ পার্টনার যোগ",
+    platformName: "প্ল্যাটফর্মের নাম", commission: "কমিশন %", recordPayout: "পেমেন্ট জমা নিন", totalGross: "মোট অর্ডার ভ্যালু",
+    netPayable: "কমিশন বাদে প্রাপ্য", received: "পেমেন্ট রিসিভড", pendingDue: "বকেয়া ব্যালেন্স", filterPlatform: "চ্যানেল ফিল্টার",
+    allPlatforms: "সব ডেলিভারি পার্টনার", unPaidOnly: "শুধু বাকি (Unpaid)",
+    editBillNotice: "কাস্টমার কোন আইটেম না চাইলে সরাসরি মুছুন। বিলের মোট টাকা অটো আপডেট হবে।",
+    editItemsTitle: "আইটেম এডিট", newTotal: "নতুন মোট",
+    bookTable: "টেবিল বুকিং", reserve: "রিজার্ভ করুন", bookInfo: "বুকিং তথ্য", reservedStatus: "বুকড / রিজার্ভড",
+    customerName: "কাস্টমারের নাম", bookingTime: "সময় / বিশেষ নোট", releaseBooking: "বুকিং বাতিল / ফ্রি করুন",
+    editTable: "টেবিল এডিট"
+  }
+};
+
+let currentLang = localStorage.getItem('tmpro_lang') || 'en';
+function t(k) { return (I18N[currentLang] && I18N[currentLang][k]) ? I18N[currentLang][k] : k; }
+
+function toggleLanguage() {
+  currentLang = currentLang === 'en' ? 'bn' : 'en';
+  localStorage.setItem('tmpro_lang', currentLang);
+  updateLanguageDisplay();
+  renderCurrentView();
+}
+
+function updateLanguageDisplay() {
+  const btn = document.getElementById('btn-lang-toggle');
+  if (btn) btn.innerHTML = `🌐 <span>${currentLang === 'en' ? 'English' : 'বাংলা'}</span>`;
+}
+
+/* ==========================================================================
+   SHEET & QR UTILS
+   ========================================================================== */
+function openSheet(title, html) {
+  document.getElementById('sheet-title').innerText = title;
+  document.getElementById('sheet-body').innerHTML = html;
+  document.getElementById('sheet-backdrop').classList.add('active');
+}
+function closeSheet() { document.getElementById('sheet-backdrop').classList.remove('active'); }
+function sheetBackdropClick(e) { if (e.target.id === 'sheet-backdrop') closeSheet(); }
+
+function createSafeQR(text) {
+  if (!text) return '';
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(String(text));
+    qr.make();
+    return qr.createDataURL(4);
+  } catch (err) { return ''; }
+}
+
+/* ==========================================================================
+   NAVIGATION CONFIGURATION
+   ========================================================================== */
+const ALL_NAV_ITEMS = [
+  { id: 'dashboard', i18n: 'navHome', icon: '<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>', roles: ['owner','cashier'] },
+  { id: 'pos', i18n: 'navPOS', icon: '<path d="M12 4v16m8-8H4"/>', roles: ['owner','waiter','cashier'] },
+  { id: 'kitchen', i18n: 'navKitchen', icon: '<path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>', roles: ['owner','kitchen','waiter'] },
+  { id: 'bills', i18n: 'navBills', icon: '<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>', roles: ['owner','cashier'] },
+  { id: 'platforms', i18n: 'navPlatforms', icon: '<path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>', roles: ['owner'] },
+  { id: 'expenses', i18n: 'navExpenses', icon: '<path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>', roles: ['owner'] },
+  { id: 'reports', i18n: 'navReports', icon: '<path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>', roles: ['owner'] },
+  { id: 'menu', i18n: 'navMenu', icon: '<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>', roles: ['owner'] }
+];
+
+let activeTab = 'dashboard';
+let posSearchQuery = '';
+let posCategoryFilter = 'All';
+let billFilter = 'today';
+let billCustomStart = window.todayStr();
+let billCustomEnd = window.todayStr();
+let platformViewFilter = 'All';
+let reportFilter = 'today';
+let reportCustomStart = window.todayStr();
+let reportCustomEnd = window.todayStr();
+let expenseCategoryFilter = 'All';
+let cartState = { tableId: '', items: [] };
+
+function setupNavigation() {
+  const role = window.CURRENT_USER_ROLE || 'owner';
+  const bottomBar = document.getElementById('app-bottom-bar');
+  if (!bottomBar) return;
+  const allowed = ALL_NAV_ITEMS.filter(it => !it.roles || it.roles.includes(role));
+  bottomBar.innerHTML = allowed.map(it => `
+    <button class="bar-item ${activeTab === it.id ? 'active' : ''}" onclick="navigate('${it.id}')" id="nav-${it.id}">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${it.icon}</svg>
+      <span>${t(it.i18n)}</span>
+    </button>
+  `).join('');
+  if (!allowed.some(it => it.id === activeTab)) {
+    activeTab = allowed[0] ? allowed[0].id : 'dashboard';
+  }
+}
+
+function navigate(tab) { activeTab = tab; setupNavigation(); renderCurrentView(); }
+
+/* ==========================================================================
+   RENDER VIEWS
+   ========================================================================== */
+window.renderCurrentView = function() {
+  if (window.IS_CUSTOMER_MODE) return;
+  const data = window.getData();
+  const container = document.getElementById('main-view');
+  if (!container) return;
+
+  document.getElementById('txt-cafe-name').innerText = data.name || 'TableMaster Pro';
+  const roleBadge = document.getElementById('active-user-role');
+  if (roleBadge) roleBadge.innerText = (window.CURRENT_USER_ROLE || 'owner').toUpperCase();
+
+  updateLanguageDisplay();
+  setupNavigation();
+
+  const developerFooterHtml = `
+    <div class="dev-footer">
+      Powered by <b>TableMaster Pro Cloud</b>
+    </div>
+  `;
+
+  // DASHBOARD
+  if (activeTab === 'dashboard') {
+    const today = window.todayStr();
+    const todayCompletedOrders = (data.orders || []).filter(o => o.status === 'completed' && o.date === today);
+    const todaySales = todayCompletedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const todayExpenses = (data.expenses || []).filter(e => e.date === today).reduce((sum, e) => sum + (e.amount || 0), 0);
+    const todayProfit = todaySales - todayExpenses;
+    const activeKOTCount = (data.orders || []).filter(o => o.status === 'preparing').length;
+
+    container.innerHTML = `
+      <div class="tm-card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color:#fff;">
+        <div style="font-size:11px; text-transform:uppercase; color:#94a3b8; font-weight:700;">${t('todaySales')}</div>
+        <div style="font-size:30px; font-weight:800; color:#38bdf8; margin:4px 0 8px;">₹ ${todaySales.toFixed(2)}</div>
+        <div style="font-size:12px; color:#cbd5e1; display:flex; justify-content:space-between;">
+          <span>${t('totalOrders')}: <b>${todayCompletedOrders.length}</b></span>
+          <span>${t('netProfit')}: <b style="color:${todayProfit >= 0 ? '#4ade80' : '#f87171'};">₹ ${todayProfit.toFixed(2)}</b></span>
+        </div>
+      </div>
+
+      <div class="quick-grid">
+        <div class="quick-tile" onclick="navigate('pos')">
+          <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></div>
+          <div class="tile-title">${t('newOrder')}</div>
+          <div class="tile-desc">${t('newOrderSub')}</div>
+        </div>
+        <div class="quick-tile amber" onclick="navigate('kitchen')">
+          <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg></div>
+          <div class="tile-title">${t('kitchenLive')}</div>
+          <div class="tile-desc">${activeKOTCount} ${t('kitchenLiveSub')}</div>
+        </div>
+        <div class="quick-tile emerald" onclick="navigate('reports')">
+          <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
+          <div class="tile-title">${t('reportsAndProfit')}</div>
+          <div class="tile-desc">${t('reportsAndProfitSub')}</div>
+        </div>
+        <div class="quick-tile purple" onclick="navigate('platforms')">
+          <div class="tile-bubble"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg></div>
+          <div class="tile-title">Swiggy & Zomato</div>
+          <div class="tile-desc">Partners & Dues</div>
+        </div>
+      </div>
+
+      <div class="tm-card">
+        <div class="tm-card-title">
+          <span>${t('floorMap')}</span>
+          <div style="display:flex;gap:6px;">
+            <button style="border:none;background:#f3e8ff;color:#8b5cf6;padding:5px 10px;border-radius:6px;font-weight:700;font-size:11px;cursor:pointer;" onclick="showAllTableQRs()">${t('allQR')}</button>
+            <button style="border:none;background:#eff6ff;color:var(--primary);padding:5px 10px;border-radius:6px;font-weight:700;font-size:11.5px;cursor:pointer;" onclick="openAddTableSheet()">${t('addTable')}</button>
+          </div>
+        </div>
+        <div class="table-grid">
+          ${(data.tables || []).map(tData => `
+            <div class="table-card ${tData.status}">
+              <span class="table-dot"></span>
+              <div onclick="handleTableSelect('${tData.id}')">
+                <div style="font-size:15px;font-weight:800;">${tData.name}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${tData.seats} ${t('seater')}</div>
+                ${tData.status === 'reserved' && tData.booking ? `
+                  <div style="font-size:10px;color:#7c3aed;font-weight:700;margin-top:3px;">
+                    📅 ${tData.booking.name} (${tData.booking.time})
+                  </div>
+                ` : ''}
+              </div>
+              <div style="display:flex;gap:4px;margin-top:8px;">
+                <button onclick="event.stopPropagation(); openEditTableSheet('${tData.id}');" style="flex:1;border:none;background:#f1f5f9;color:#475569;font-size:10px;font-weight:700;padding:4px;border-radius:5px;cursor:pointer;">✏️ Edit</button>
+                <button onclick="event.stopPropagation(); openBookingSheet('${tData.id}');" style="flex:1;border:none;background:#ede9fe;color:#6d28d9;font-size:10px;font-weight:700;padding:4px;border-radius:5px;cursor:pointer;">📅 Book</button>
+                <button onclick="event.stopPropagation(); showTableQR('${tData.id}');" style="flex:1;border:none;background:#eff6ff;color:var(--primary);font-size:10px;font-weight:700;padding:4px;border-radius:5px;cursor:pointer;">📱 QR</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ${developerFooterHtml}
+    `;
+  }
+
+  // POS
+  else if (activeTab === 'pos') {
+    const cats = ['All', ...new Set((data.menu || []).map(m => m.category))];
+    let dishes = posCategoryFilter === 'All' ? (data.menu || []) : (data.menu || []).filter(m => m.category === posCategoryFilter);
+    if (posSearchQuery.trim()) {
+      const q = posSearchQuery.toLowerCase();
+      dishes = dishes.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.category && d.category.toLowerCase().includes(q)));
+    }
+    const cartItemCount = cartState.items.reduce((s, i) => s + i.qty, 0);
+    const cartSubtotal = cartState.items.reduce((s, i) => s + (i.price * i.qty), 0);
+
+    container.innerHTML = `
+      <div class="tm-card">
+        <label>${t('table')}</label>
+        <select id="pos-table-select" style="margin-bottom:10px;" onchange="cartState.tableId = this.value; renderCurrentView();">
+          <option value="">-- Choose Channel --</option>
+          <optgroup label="🪑 Dine-in Floor Tables">
+            ${(data.tables || []).map(tData => `
+              <option value="${tData.id}" ${cartState.tableId === tData.id ? 'selected':''}>
+                ${tData.name} (${tData.seats} Seater) - ${tData.status.toUpperCase()}
+              </option>
+            `).join('')}
+          </optgroup>
+          <optgroup label="🛵 Online Delivery Partners">
+            ${(data.platforms || []).map(p => `
+              <option value="platform_${p.id}" ${cartState.tableId === 'platform_' + p.id ? 'selected':''}>
+                ${p.name} (Online - Comm ${p.commissionRate}%)
+              </option>
+            `).join('')}
+            <option value="takeaway" ${cartState.tableId === 'takeaway' ? 'selected':''}>🛍️ Direct Takeaway / Parcel</option>
+          </optgroup>
+        </select>
+
+        <input type="text" id="pos-search-input" placeholder="${t('searchPlaceholder')}" value="${posSearchQuery}" oninput="posSearchQuery=this.value;renderCurrentView();" style="margin-bottom:10px;">
+
+        <div class="cat-scroll">
+          ${cats.map(c => `<button class="cat-btn ${posCategoryFilter === c ? 'active':''}" onclick="posCategoryFilter='${c}'; renderCurrentView();">${c}</button>`).join('')}
+        </div>
+
+        <div class="dish-grid">
+          ${dishes.map(d => `
+            <div class="dish-card" onclick="addItemToCart('${d.id}')">
+              <div class="dish-name">${d.name}</div>
+              <div class="dish-price">₹ ${d.price}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      ${cartItemCount > 0 ? `
+        <div class="floating-cart">
+          <div>
+            <div style="font-size:10.5px;opacity:0.85;">${cartItemCount} ${t('selectedItems')}</div>
+            <div style="font-size:17px;font-weight:800;">₹ ${cartSubtotal.toFixed(2)}</div>
+          </div>
+          <button class="btn-place" onclick="openCartReviewSheet()">${t('confirmOrderKOT')}</button>
+        </div>
+      `: ''}
+      ${developerFooterHtml}
+    `;
+  }
+
+  // KITCHEN
+  else if (activeTab === 'kitchen') {
+    const liveKOT = (data.orders || []).filter(o => o.status === 'preparing');
+    const readyKOT = (data.orders || []).filter(o => o.status === 'ready_to_serve');
+
+    const getChannelLabel = (tId) => {
+      if (tId && tId.startsWith('platform_')) {
+        const pId = tId.replace('platform_', '');
+        const p = (data.platforms || []).find(x => x.id === pId);
+        return p ? '🛵 ' + p.name : '🛵 Online';
+      }
+      if (tId === 'takeaway') return '🛍️ Takeaway';
+      const tbl = (data.tables || []).find(tData => tData.id === tId);
+      return tbl ? '🪑 ' + tbl.name : 'Counter';
+    };
+
+    container.innerHTML = `
+      <div class="tm-card">
+        <div class="tm-card-title">
+          <span>${t('liveKitchenDisplay')}</span>
+          <small style="color:var(--warning);font-weight:700;">${liveKOT.length} ${t('runningOrders')}</small>
+        </div>
+        ${liveKOT.length === 0 ? `<div style="text-align:center;padding:18px;color:var(--text-muted);">${t('noKOT')}</div>` : ''}
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${liveKOT.map(o => `
+            <div style="border:1.5px solid var(--border);border-radius:10px;padding:12px;background:#fff;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <strong style="font-size:15px;">${getChannelLabel(o.tableId)} (#KOT-${o.kotNo})</strong>
+                <span style="font-size:10.5px;padding:3px 8px;border-radius:12px;background:#fef3c7;color:#b45309;font-weight:700;">PREPARING</span>
+              </div>
+              <div style="font-size:12.5px;color:#334155;line-height:1.5;margin-bottom:10px;">
+                ${o.items.map(i => `
+                  <div style="display:flex;justify-content:space-between;">
+                    <span>• <b>${i.qty}x</b> ${i.name}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <button class="btn-primary" style="padding:9px;font-size:12.5px;" onclick="completeKOT('${o.id}')">${t('readyToServe')}</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      ${readyKOT.length > 0 ? `
+        <div class="tm-card" style="border-left: 4px solid var(--success);">
+          <div class="tm-card-title">
+            <span style="color:#065f46;">🔔 ${t('readyToServeHeader')}</span>
+            <small style="color:var(--success);font-weight:700;">${readyKOT.length} Ready</small>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            ${readyKOT.map(o => `
+              <div style="border:1px solid #a7f3d0;border-radius:10px;padding:12px;background:#ecfdf5;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <strong style="font-size:14px;color:#065f46;">${getChannelLabel(o.tableId)} (#Bill-${o.billNo})</strong>
+                  <span style="font-size:10px;padding:2px 8px;border-radius:12px;background:#d1fae5;color:#047857;font-weight:700;">FOOD READY</span>
+                </div>
+                <div style="font-size:12px;color:#334155;margin-bottom:8px;">
+                  ${o.items.map(i => `<div>• ${i.qty}x ${i.name}</div>`).join('')}
+                </div>
+                <button class="btn-primary" style="background:#059669;padding:7px;font-size:11.5px;" onclick="markOrderServed('${o.id}')">${t('markServed')}</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      ${developerFooterHtml}
+    `;
+  }
+
+  // BILLS
+  else if (activeTab === 'bills') {
+    const today = window.todayStr();
+    let ordersList = [...(data.orders || [])];
+    ordersList.sort((a, b) => (b.kotNo || 0) - (a.kotNo || 0));
+
+    if (billFilter === 'today') ordersList = ordersList.filter(o => o.date === today);
+    else if (billFilter === 'unpaid') ordersList = ordersList.filter(o => o.status !== 'completed');
+    else if (billFilter === 'custom') ordersList = ordersList.filter(o => (o.date || today) >= billCustomStart && (o.date || today) <= billCustomEnd);
+
+    const getChannelName = (tId) => {
+      if (tId && tId.startsWith('platform_')) {
+        const pId = tId.replace('platform_', '');
+        const p = (data.platforms || []).find(x => x.id === pId);
+        return p ? '🛵 ' + p.name : '🛵 Online';
+      }
+      if (tId === 'takeaway') return '🛍️ Takeaway';
+      const tbl = (data.tables || []).find(tData => tData.id === tId);
+      return tbl ? '🪑 ' + tbl.name : 'Counter';
+    };
+
+    container.innerHTML = `
+      <div class="tm-card">
+        <div class="tm-card-title">
+          <span>${t('billingHistory')}</span>
+          <small style="color:var(--text-muted);font-weight:600;">${ordersList.length} bills</small>
+        </div>
+
+        <div class="filter-bar">
+          <button class="filter-chip ${billFilter==='today'?'active':''}" onclick="billFilter='today';renderCurrentView();">${t('filterToday')}</button>
+          <button class="filter-chip ${billFilter==='unpaid'?'active':''}" onclick="billFilter='unpaid';renderCurrentView();">${t('unPaidOnly')}</button>
+          <button class="filter-chip ${billFilter==='custom'?'active':''}" onclick="billFilter='custom';renderCurrentView();">${t('filterCustom')}</button>
+          <button class="filter-chip ${billFilter==='all'?'active':''}" onclick="billFilter='all';renderCurrentView();">${t('filterAll')}</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${ordersList.length === 0 ? `<div style="text-align:center;padding:24px;color:var(--text-muted);">${t('noBills')}</div>` : ''}
+          ${ordersList.map(o => {
+            const isSettled = o.status === 'completed';
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:10px;${isSettled ? 'background:#f8fafc;' : 'background:#fff;'}">
+                <div style="flex:1;">
+                  <div style="font-weight:700;">
+                    #${o.billNo} — ${getChannelName(o.tableId)}
+                    <span class="badge ${isSettled ? 'cat-sal' : 'cat-raw'}" style="margin-left:4px;font-size:9px;">${isSettled ? 'PAID' : 'UNPAID'}</span>
+                  </div>
+                  <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">
+                    📅 ${o.date || today} · ${o.items.length} items · <b>₹ ${o.total.toFixed(2)}</b>
+                  </div>
+                </div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+                  <button class="btn-sm-outline" onclick="showReceiptModal('${o.id}')">Receipt</button>
+                  ${!isSettled ? `
+                    <button class="btn-sm-outline" style="background:#fef3c7;color:#b45309;border-color:#fde68a;" onclick="openEditRunningOrderSheet('${o.id}')">✏️ Edit</button>
+                    <button class="btn-primary" style="width:auto;padding:5px 10px;font-size:11.5px;" onclick="settleBillAndReleaseTable('${o.id}')">✓ Settle</button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+      ${developerFooterHtml}
+    `;
+  }
+
+  // PLATFORMS
+  else if (activeTab === 'platforms') {
+    const platforms = data.platforms || [];
+    const orders = (data.orders || []).filter(o => o.status === 'completed');
+    const payouts = data.platformPayouts || [];
+
+    const stats = platforms.map(p => {
+      const pOrders = orders.filter(o => o.tableId === 'platform_' + p.id);
+      const grossSales = pOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+      const commissionAmount = grossSales * ((p.commissionRate || 0) / 100);
+      const netReceivable = grossSales - commissionAmount;
+      const totalReceived = payouts.filter(pay => pay.platformId === p.id).reduce((sum, pay) => sum + (pay.amount || 0), 0);
+      const pendingDue = netReceivable - totalReceived;
+      return { ...p, grossSales, commissionAmount, netReceivable, totalReceived, pendingDue, orderCount: pOrders.length };
+    });
+
+    container.innerHTML = `
+      <div class="tm-card">
+        <div class="tm-card-title">
+          <span>🛵 ${t('onlinePlatformsTitle')}</span>
+          <button class="btn-sm-outline" onclick="openAddPlatformSheet()">${t('addPlatform')}</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${stats.map(s => `
+            <div style="border:1.5px solid var(--border);border-radius:12px;padding:12px;background:#fff;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div>
+                  <h4 style="font-size:15px;font-weight:800;">${s.name}</h4>
+                  <span style="font-size:11px;color:var(--text-muted);">${t('commission')}: <b>${s.commissionRate}%</b></span>
+                </div>
+                <button class="btn-sm-outline" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0;" onclick="openRecordPayoutSheet('${s.id}', '${s.name}')">+ ${t('recordPayout')}</button>
+              </div>
+              <div style="display:grid;grid-template-columns: repeat(3, 1fr);gap:6px;background:#f8fafc;padding:10px;border-radius:8px;text-align:center;">
+                <div><div style="font-size:9.5px;color:#64748b;font-weight:700;">${t('totalGross')}</div><div style="font-size:13px;font-weight:800;">₹ ${s.grossSales.toFixed(0)}</div></div>
+                <div><div style="font-size:9.5px;color:#64748b;font-weight:700;">${t('received')}</div><div style="font-size:13px;font-weight:800;color:#059669;">₹ ${s.totalReceived.toFixed(0)}</div></div>
+                <div><div style="font-size:9.5px;color:#64748b;font-weight:700;">${t('pendingDue')}</div><div style="font-size:13px;font-weight:800;color:${s.pendingDue > 0 ? '#dc2626' : '#059669'};">₹ ${s.pendingDue.toFixed(0)}</div></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ${developerFooterHtml}
+    `;
+  }
+
+  // EXPENSES
+  else if (activeTab === 'expenses') {
+    const today = window.todayStr();
+    const todayExpenses = (data.expenses || []).filter(e => e.date === today).reduce((sum, e) => sum + e.amount, 0);
+
+    container.innerHTML = `
+      <div class="tm-card">
+        <div class="tm-card-title">
+          <span>${t('navExpenses')}</span>
+          <button class="btn-sm-outline" onclick="openExpenseSheet()">+ ${t('expenseTitle')}</button>
+        </div>
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px;margin-bottom:12px;">
+          <div style="font-size:10.5px;font-weight:700;color:#991b1b;text-transform:uppercase;">Today's Spend</div>
+          <div style="font-size:22px;font-weight:800;color:#dc2626;margin-top:2px;">₹ ${todayExpenses.toFixed(2)}</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+            <tbody>
+              ${(data.expenses || []).map(e => `
+                <tr>
+                  <td><b>${e.date}</b></td>
+                  <td>${e.desc}</td>
+                  <td style="font-weight:700;color:#dc2626;">₹ ${e.amount.toFixed(2)}</td>
+                  <td><button class="btn-danger" style="padding:3px 6px;font-size:10px;" onclick="deleteExpense('${e.id}')">✕</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ${developerFooterHtml}
+    `;
+  }
+
+  // REPORTS
+  else if (activeTab === 'reports') {
+    const today = window.todayStr();
+    const totalSales = (data.orders || []).filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalExp = (data.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+    const netProfit = totalSales - totalExp;
+
+    container.innerHTML = `
+      <div class="tm-card">
+        <div class="tm-card-title">
+          <span>${t('reportsAndProfit')}</span>
+          <button class="btn-sm-outline" onclick="exportReportsCSV()">${t('exportCSV')}</button>
+        </div>
+        <div class="profit-banner ${netProfit >= 0 ? 'profit' : 'loss'}">
+          <div>
+            <div class="label">${netProfit >= 0 ? t('netProfit') : t('netLoss')}</div>
+            <div class="val">₹ ${Math.abs(netProfit).toFixed(2)}</div>
+          </div>
+          <div class="profit-breakdown">
+            <div><span>${t('sales')}</span><span style="color:#059669;">₹ ${totalSales.toFixed(2)}</span></div>
+            <div><span>${t('expenses')}</span><span style="color:#dc2626;">₹ ${totalExp.toFixed(2)}</span></div>
+          </div>
+        </div>
+      </div>
+      ${developerFooterHtml}
+    `;
+  }
+
+  // MENU
+  else if (activeTab === 'menu') {
+    container.innerHTML = `
+      <div class="tm-card">
+        <div class="tm-card-title">
+          <span>${t('digitalMenuCard')}</span>
+          <button class="btn-sm-outline" onclick="openAddDishSheet()">${t('addNewDish')}</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${(data.menu || []).map(d => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;">
+              <div>
+                <div style="font-weight:700;">${d.name}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${d.category}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-weight:800;color:var(--primary);">₹ ${d.price}</span>
+                <button class="btn-danger" style="padding:4px 8px;font-size:10px;" onclick="deleteDish('${d.id}')">${t('delete')}</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ${developerFooterHtml}
+    `;
+  }
+};
+
+/* ==========================================================================
+   TABLE MANAGEMENT & BOOKING SYSTEM (NEW)
+   ========================================================================== */
+function openAddTableSheet() {
+  const form = `
+    <label>${t('table')} Name</label>
+    <input type="text" id="tbl-in-name" placeholder="e.g. Table 5 / T-05">
+    <label>${t('seater')} Capacity</label>
+    <input type="number" id="tbl-in-seats" value="4" min="1">
+    <button class="btn-primary" onclick="saveNewTable()">${t('save')}</button>
+  `;
+  openSheet(t('addTable'), form);
+}
+
+function saveNewTable() {
+  const data = window.getData();
+  const name = document.getElementById('tbl-in-name').value.trim();
+  const seats = parseInt(document.getElementById('tbl-in-seats').value) || 4;
+  if (!name) return;
+  if (!data.tables) data.tables = [];
+  data.tables.push({ id: 't_' + Date.now(), name, seats, status: 'available', booking: null });
+  window.cloudSave(); closeSheet(); renderCurrentView();
+}
+
+function openEditTableSheet(tableId) {
+  const data = window.getData();
+  const tbl = (data.tables || []).find(t => t.id === tableId);
+  if (!tbl) return;
+
+  const form = `
+    <label>${t('table')} Name</label>
+    <input type="text" id="tbl-edit-name" value="${tbl.name}">
+    <label>${t('seater')} Capacity</label>
+    <input type="number" id="tbl-edit-seats" value="${tbl.seats}" min="1">
+    <button class="btn-primary" onclick="saveEditTable('${tableId}')">${t('save')}</button>
+    <button class="btn-danger" style="width:100%;margin-top:8px;padding:9px;" onclick="deleteTable('${tableId}')">${t('delete')}</button>
+  `;
+  openSheet(t('editTable') + ' — ' + tbl.name, form);
+}
+
+function saveEditTable(tableId) {
+  const data = window.getData();
+  const tbl = (data.tables || []).find(t => t.id === tableId);
+  if (!tbl) return;
+  const name = document.getElementById('tbl-edit-name').value.trim();
+  const seats = parseInt(document.getElementById('tbl-edit-seats').value) || 4;
+  if (!name) return;
+  tbl.name = name;
+  tbl.seats = seats;
+  window.cloudSave(); closeSheet(); renderCurrentView();
+}
+
+function deleteTable(tableId) {
+  const data = window.getData();
+  if (!confirm(t('confirmDelete'))) return;
+  data.tables = (data.tables || []).filter(t => t.id !== tableId);
+  window.cloudSave(); closeSheet(); renderCurrentView();
+}
+
+function openBookingSheet(tableId) {
+  const data = window.getData();
+  const tbl = (data.tables || []).find(t => t.id === tableId);
+  if (!tbl) return;
+
+  const b = tbl.booking || {};
+  const isBooked = tbl.status === 'reserved';
+
+  const form = `
+    <div style="font-weight:700;margin-bottom:10px;">${tbl.name} (${tbl.seats} ${t('seater')})</div>
+    <label>${t('customerName')}</label>
+    <input type="text" id="bk-name" value="${b.name || ''}" placeholder="e.g. Rahul Sen">
+    <label>${t('phone')}</label>
+    <input type="text" id="bk-phone" value="${b.phone || ''}" placeholder="e.g. 9876543210">
+    <label>${t('bookingTime')}</label>
+    <input type="text" id="bk-time" value="${b.time || ''}" placeholder="e.g. 8:30 PM (4 Persons)">
+    <button class="btn-primary" onclick="saveTableBooking('${tableId}')">${t('reserve')}</button>
+    ${isBooked ? `
+      <button class="btn-danger" style="width:100%;margin-top:8px;padding:9px;" onclick="releaseTableBooking('${tableId}')">${t('releaseBooking')}</button>
+    ` : ''}
+  `;
+  openSheet(t('bookTable') + ' — ' + tbl.name, form);
+}
+
+function saveTableBooking(tableId) {
+  const data = window.getData();
+  const tbl = (data.tables || []).find(t => t.id === tableId);
+  if (!tbl) return;
+  const name = document.getElementById('bk-name').value.trim();
+  const phone = document.getElementById('bk-phone').value.trim();
+  const time = document.getElementById('bk-time').value.trim();
+
+  if (!name) { alert('Please enter Customer Name'); return; }
+  tbl.booking = { name, phone, time, date: window.todayStr() };
+  tbl.status = 'reserved';
+  window.cloudSave(); closeSheet(); renderCurrentView();
+}
+
+function releaseTableBooking(tableId) {
+  const data = window.getData();
+  const tbl = (data.tables || []).find(t => t.id === tableId);
+  if (!tbl) return;
+  tbl.booking = null;
+  tbl.status = 'available';
+  window.cloudSave(); closeSheet(); renderCurrentView();
+}
+
+/* ==========================================================================
+   EDIT RUNNING BILL (FIXED & FULLY DYNAMIC)
+   ========================================================================== */
+function openEditRunningOrderSheet(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (!o) return;
+  if (o.status === 'completed') { alert('Completed orders cannot be edited.'); return; }
+
+  const html = `
+    <div style="background:#fef3c7;border:1px solid #fde68a;padding:10px;border-radius:8px;margin-bottom:12px;font-size:11.5px;color:#92400e;">
+      ⚠️ ${t('editBillNotice')}
+    </div>
+    <div style="font-weight:800;margin-bottom:10px;font-size:14px;">Bill #${o.billNo} — ${t('editItemsTitle')}</div>
+    <div style="margin-bottom:14px;">
+      ${o.items.map((it, idx) => `
+        <div class="bill-item-row">
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:13px;">${it.name}</div>
+            <div style="font-size:11px;color:#64748b;">₹ ${it.price} × ${it.qty} = ₹ ${(it.price * it.qty).toFixed(2)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="qty-btn" onclick="editOrderItemQty('${orderId}', ${idx}, -1)">−</button>
+            <b style="min-width:16px;text-align:center;">${it.qty}</b>
+            <button class="qty-btn" onclick="editOrderItemQty('${orderId}', ${idx}, 1)">+</button>
+            <button class="btn-danger" style="padding:4px 8px;font-size:10px;" onclick="removeItemFromOrder('${orderId}', ${idx})">🗑️</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="text-align:right;font-size:15px;font-weight:800;padding-top:8px;border-top:1px dashed var(--border);">
+      ${t('newTotal')}: <span style="color:var(--primary);">₹ ${o.total.toFixed(2)}</span>
+    </div>
+  `;
+  openSheet('Edit Bill #' + o.billNo, html);
+}
+
+function recalcOrderTotals(o) {
+  o.subtotal = o.items.reduce((s, i) => s + i.price * i.qty, 0);
+  const gstRate = o.gstRate || 0, serviceRate = o.serviceRate || 0;
+  o.gst = gstRate > 0 ? o.subtotal * (gstRate / 100) : 0;
+  o.service = serviceRate > 0 ? o.subtotal * (serviceRate / 100) : 0;
+  o.total = o.subtotal + o.gst + o.service;
+}
+
+function editOrderItemQty(orderId, idx, change) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (!o || !o.items[idx]) return;
+  o.items[idx].qty += change;
+  if (o.items[idx].qty <= 0) o.items.splice(idx, 1);
+  if (o.items.length === 0) {
+    if (confirm('All items removed. Cancel order?')) {
+      data.orders = data.orders.filter(ord => ord.id !== orderId);
+      const tbl = (data.tables || []).find(t => t.id === o.tableId);
+      if (tbl) tbl.status = 'available';
+      window.cloudSave(); closeSheet(); renderCurrentView();
+    }
+    return;
+  }
+  recalcOrderTotals(o);
+  window.cloudSave();
+  openEditRunningOrderSheet(orderId);
+  renderCurrentView();
+}
+
+function removeItemFromOrder(orderId, idx) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (!o) return;
+  if (!confirm('Remove this item?')) return;
+  o.items.splice(idx, 1);
+  if (o.items.length === 0) {
+    data.orders = data.orders.filter(ord => ord.id !== orderId);
+    const tbl = (data.tables || []).find(t => t.id === o.tableId);
+    if (tbl) tbl.status = 'available';
+    window.cloudSave(); closeSheet(); renderCurrentView();
+    return;
+  }
+  recalcOrderTotals(o);
+  window.cloudSave();
+  openEditRunningOrderSheet(orderId);
+  renderCurrentView();
+}
+
+/* ==========================================================================
+   ORDER ACTIONS & RECEIPT
+   ========================================================================== */
+function handleTableSelect(tblId) { cartState.tableId = tblId; navigate('pos'); }
+
+function addItemToCart(dishId) {
+  const data = window.getData();
+  const dish = (data.menu || []).find(d => d.id === dishId);
+  if (!dish) return;
+  const item = cartState.items.find(i => i.dishId === dishId);
+  if (item) item.qty += 1;
+  else cartState.items.push({ dishId, name: dish.name, price: dish.price, qty: 1 });
+  renderCurrentView();
+}
+
+function openCartReviewSheet() {
+  const data = window.getData();
+  if (!cartState.tableId) { alert(t('selectDishWarning')); return; }
+  const subtotal = cartState.items.reduce((s, i) => s + (i.price * i.qty), 0);
+  const gstRate = parseFloat(data.gstRate) || 0;
+  const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
+  const grandTotal = subtotal + gst;
+
+  const body = `
+    <div style="font-weight:700;margin-bottom:10px;">${t('table')}: Selected</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+      ${cartState.items.map((it, idx) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><b>${it.name}</b><br><small>₹ ${it.price}</small></div>
+          <b>${it.qty}x</b>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-weight:800;font-size:15px;margin-bottom:14px;">
+      <span>${t('grandTotal')}:</span><span>₹ ${grandTotal.toFixed(2)}</span>
+    </div>
+    <button class="btn-primary" onclick="submitOrderToKitchen()">${t('sendToKitchen')}</button>
+  `;
+  openSheet(t('orderConfirmation'), body);
+}
+
+function submitOrderToKitchen() {
+  const data = window.getData();
+  if (!data.orders) data.orders = [];
+  const subtotal = cartState.items.reduce((s, i) => s + (i.price * i.qty), 0);
+  const gstRate = parseFloat(data.gstRate) || 0;
+  const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
+  const orderNum = 100 + data.orders.length + 1;
+
+  data.orders.push({
+    id: 'ord_' + Date.now(), kotNo: orderNum, billNo: orderNum, tableId: cartState.tableId,
+    items: cartState.items, subtotal, gst, gstRate,
+    total: subtotal + gst, status: 'preparing',
+    date: window.todayStr()
+  });
+
+  const tbl = (data.tables || []).find(tData => tData.id === cartState.tableId);
+  if (tbl) tbl.status = 'occupied';
+
+  window.cloudSave();
+  cartState = { tableId: '', items: [] };
+  closeSheet();
+  navigate('kitchen');
+}
+
+function completeKOT(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (o) { o.status = 'ready_to_serve'; window.cloudSave(); renderCurrentView(); }
+}
+
+function markOrderServed(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (o) { o.status = 'served'; window.cloudSave(); renderCurrentView(); }
+}
+
+function settleBillAndReleaseTable(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (!o) return;
+  if (!confirm(`Settle ₹ ${o.total.toFixed(2)} for Bill #${o.billNo}?`)) return;
+  o.status = 'completed';
+  const tbl = (data.tables || []).find(tData => tData.id === o.tableId);
+  if (tbl) { tbl.status = 'available'; tbl.booking = null; }
+  window.cloudSave();
+  renderCurrentView();
+}
+
+function showReceiptModal(orderId) {
+  const data = window.getData();
+  const o = (data.orders || []).find(ord => ord.id === orderId);
+  if (!o) return;
+  const upiString = `upi://pay?pa=${data.upi}&pn=${encodeURIComponent(data.name)}&am=${o.total.toFixed(2)}&cu=INR`;
+  const upiQrImg = createSafeQR(upiString);
+
+  const receiptHtml = `
+    <div class="receipt-paper" id="paper-element">
+      <div class="c" style="font-size:13px;font-weight:bold;">${data.name}</div>
+      <div class="c" style="font-size:9.5px;">Ph: ${data.phone}</div>
+      <hr>
+      <div>Bill #: ${o.billNo}</div>
+      <div>Date: ${o.date || window.todayStr()}</div>
+      <hr>
+      ${o.items.map(i => `<div style="display:flex;justify-content:space-between;"><span>${i.name} x${i.qty}</span><span>₹ ${(i.price * i.qty).toFixed(2)}</span></div>`).join('')}
+      <hr>
+      <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>${t('grandTotal')}:</span><span>₹ ${o.total.toFixed(2)}</span></div>
+      ${upiQrImg ? `<div class="c" style="margin-top:8px;"><img src="${upiQrImg}" class="qr-img"><div style="font-size:9px;">${t('scanToPay')}</div></div>` : ''}
+    </div>
+    <button class="btn-primary" style="margin-top:12px;" onclick="window.print()">${t('printThermalReceipt')}</button>
+  `;
+  openSheet(t('billsAndPrint'), receiptHtml);
+}
+
+function showAllTableQRs() {
+  const data = window.getData();
+  const cardsHtml = (data.tables || []).map(tbl => {
+    const url = `${window.location.origin}${window.location.pathname}?mode=customer&cafe=${data.cafeId}&table=${tbl.id}`;
+    const qrImg = createSafeQR(url);
+    return `
+      <div class="table-qr-card" style="margin-bottom:12px;">
+        <div class="qr-cafe-name">${data.name}</div>
+        <div class="qr-table-name">${tbl.name}</div>
+        <img src="${qrImg}" class="qr-big-img">
+        <div style="font-size:11px;color:#64748b;">${tbl.seats} Seater Table</div>
+      </div>
+    `;
+  }).join('');
+  openSheet(t('allQR'), cardsHtml);
+}
+
+function showTableQR(tableId) {
+  const data = window.getData();
+  const tbl = (data.tables || []).find(t => t.id === tableId);
+  if (!tbl) return;
+  const url = `${window.location.origin}${window.location.pathname}?mode=customer&cafe=${data.cafeId}&table=${tbl.id}`;
+  const qrImg = createSafeQR(url);
+  const html = `
+    <div class="table-qr-card">
+      <div class="qr-cafe-name">${data.name}</div>
+      <div class="qr-table-name">${tbl.name}</div>
+      <img src="${qrImg}" class="qr-big-img">
+      <div style="font-size:11px;color:#64748b;">${tbl.seats} ${t('seater')}</div>
+    </div>
+  `;
+  openSheet('QR — ' + tbl.name, html);
+}
+
+/* ==========================================================================
+   INITIALIZATION & PWA SERVICE WORKER
+   ========================================================================== */
+function routeBasedOnUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mode') === 'customer') {
+    // Customer mode
+    window.IS_CUSTOMER_MODE = true;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-container').style.display = 'none';
+    document.getElementById('customer-screen').style.display = 'flex';
+  } else {
+    checkAuth();
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration skipped', err));
+  }
+  if (initFirebaseApp()) {
+    routeBasedOnUrl();
+  }
+});
+</script>
+</body>
+</html>
