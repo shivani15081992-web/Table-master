@@ -1,4 +1,5 @@
-const CACHE_NAME = 'tablemaster-v2';
+const CACHE_NAME = 'tablemaster-v3';
+
 self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
@@ -8,5 +9,7 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  e.respondWith(
+    fetch(e.request).catch(() => caches.match(e.request))
+  );
 });
