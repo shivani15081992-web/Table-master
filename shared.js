@@ -1,7 +1,7 @@
 /* ==========================================================================
    TableMaster Pro — Shared Core Engine (shared.js)
    Developer: Debapriya Sarkar (Contact: 9046356631)
-   Ultra-Fast Cache-First, Atomic Sync & Synthesizer Alert Audio Engine
+   Ultra-Fast Cache-First, Atomic Sync, Audio Alert & FCM Push Engine
    ========================================================================== */
 
 const firebaseConfig = {
@@ -14,11 +14,13 @@ const firebaseConfig = {
   measurementId: "G-VWY05MGFR5"
 };
 
+const FCM_VAPID_KEY = "BJUBuGC_hKOAH34uj884dMmVegN80vn-mFCCcyYHvaN1KtjIk1Oiv4xUKW9s7dpBaapbPdlWdG9GZRsuJvs0qho";
+
 let auth = null;
 let db = null;
 let currentCafeListener = null;
 
-// ইনবিল্ট গোল্ডেন ভেক্টর কাটলারি লোগো
+// ইনবিল্ট গোল্ডেন কাটলারি লোগো
 const DEFAULT_GOLD_SVG_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
 function initFirebase() {
@@ -33,7 +35,7 @@ function initFirebase() {
     }
     return false;
   } catch (e) {
-    console.error("Firebase Initialization Error:", e);
+    console.error("Firebase Init Error:", e);
     return false;
   }
 }
@@ -63,7 +65,7 @@ window.RESTAURANT_DATA = {
     { id: 'plt_swiggy', name: 'Swiggy', commissionRate: 20 },
     { id: 'plt_zomato', name: 'Zomato', commissionRate: 22 }
   ],
-  platformPayouts: [], orders: [], expenses: [], staff: []
+  platformPayouts: [], orders: [], expenses: [], staff: [], deviceTokens: []
 };
 
 window.CURRENT_USER_ROLE = sessionStorage.getItem('tmpro_role_mode') || 'owner';
@@ -85,7 +87,6 @@ function getAudioContext() {
   return audioCtx;
 }
 
-// মোবাইল বা ব্রাউজারে প্রথম ক্লিকেই অডিও আনলক
 document.addEventListener('click', () => { getAudioContext(); }, { once: true });
 document.addEventListener('touchstart', () => { getAudioContext(); }, { once: true });
 
@@ -111,7 +112,7 @@ window.playAlertTone = function(type) {
         osc.stop(now + offset + 0.18);
       });
     } else if (type === 'ready') {
-      // ওয়েটারের জন্য খাবার রেডি হওয়ার মিষ্টি সার্ভিস বেল (Triple Chime - D5, A5, D6)
+      // ওয়েটারের জন্য খাবার রেডি হওয়ার সার্ভিস বেল (Triple Chime - D5, A5, D6)
       const now = ctx.currentTime;
       const notes = [587.33, 880, 1174.66];
       notes.forEach((freq, idx) => {
@@ -128,7 +129,7 @@ window.playAlertTone = function(type) {
         osc.stop(now + offset + 0.25);
       });
     } else if (type === 'cash') {
-      // ওনারের জন্য ক্যাশ রেজিস্টার পেমেন্ট টোন
+      // ক্যাশ রেজিস্টার পেমেন্ট টোন
       const now = ctx.currentTime;
       const notes = [987.77, 1318.51];
       notes.forEach((freq, idx) => {
@@ -151,7 +152,51 @@ window.playAlertTone = function(type) {
 };
 
 /* ==========================================================================
-   CACHE-FIRST INSTANT CLOUD ENGINE
+   FCM PUSH NOTIFICATION REGISTRATION (VAPID Key)
+   ========================================================================== */
+window.enableFCMNotifications = async function(roleName) {
+  try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    if (typeof firebase.messaging === 'function') {
+      const messaging = firebase.messaging();
+      const currentToken = await messaging.getToken({
+        vapidKey: FCM_VAPID_KEY,
+        serviceWorkerRegistration: registration
+      });
+
+      if (currentToken && db) {
+        const activeCafeId = sessionStorage.getItem('tmpro_cafe_id');
+        if (activeCafeId) {
+          const docRef = db.collection("cafes").doc(activeCafeId);
+          const docSnap = await docRef.get();
+          if (docSnap.exists) {
+            const cData = docSnap.data();
+            const tokens = cData.deviceTokens || [];
+            const exists = tokens.find(t => t.token === currentToken);
+            if (!exists) {
+              tokens.push({
+                token: currentToken,
+                role: roleName || 'staff',
+                updatedAt: new Date().toISOString()
+              });
+              await docRef.update({ deviceTokens: tokens });
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("FCM Setup:", err);
+  }
+};
+
+/* ==========================================================================
+   CACHE-FIRST CLOUD LISTENER
    ========================================================================== */
 function bindCafeCloudListener(cafeId, onUpdateCallback) {
   if (!db || !cafeId) return;
@@ -389,8 +434,4 @@ function closeSheet() {
 
 function sheetBackdropClick(e) {
   if (e.target.id === 'sheet-backdrop') closeSheet();
-}
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration skipped:', err));
 }
