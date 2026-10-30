@@ -1,7 +1,7 @@
 /* ==========================================================================
    TableMaster Pro — Shared Core Engine (shared.js)
    Developer: Debapriya Sarkar (Contact: 9046356631)
-   Ultra-Fast Cache-First & Atomic Order Synchronization
+   Ultra-Fast Cache-First, Atomic Sync & Synthesizer Alert Audio Engine
    ========================================================================== */
 
 const firebaseConfig = {
@@ -70,7 +70,88 @@ window.CURRENT_USER_ROLE = sessionStorage.getItem('tmpro_role_mode') || 'owner';
 window.getData = function() { return window.RESTAURANT_DATA || {}; };
 
 /* ==========================================================================
-   CACHE-FIRST INSTANT CLOUD ENGINE (জিরো-ল্যাগ & নো-ওভাররাইট)
+   REALTIME SYNTHESIZER SOUND ENGINE (Web Audio API)
+   ========================================================================== */
+let audioCtx = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) audioCtx = new AudioContext();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+// মোবাইল বা ব্রাউজারে প্রথম ক্লিকেই অডিও আনলক
+document.addEventListener('click', () => { getAudioContext(); }, { once: true });
+document.addEventListener('touchstart', () => { getAudioContext(); }, { once: true });
+
+window.playAlertTone = function(type) {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    if (type === 'kot') {
+      // কিচেনের জন্য জোরালো ডবল বেল ডিং (Double Ding - 880Hz -> 440Hz)
+      const now = ctx.currentTime;
+      [0, 0.22].forEach(offset => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now + offset);
+        osc.frequency.exponentialRampToValueAtTime(440, now + offset + 0.18);
+        gain.gain.setValueAtTime(0.35, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.18);
+      });
+    } else if (type === 'ready') {
+      // ওয়েটারের জন্য খাবার রেডি হওয়ার মিষ্টি সার্ভিস বেল (Triple Chime - D5, A5, D6)
+      const now = ctx.currentTime;
+      const notes = [587.33, 880, 1174.66];
+      notes.forEach((freq, idx) => {
+        const offset = idx * 0.12;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + offset);
+        gain.gain.setValueAtTime(0.4, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.25);
+      });
+    } else if (type === 'cash') {
+      // ওনারের জন্য ক্যাশ রেজিস্টার পেমেন্ট টোন
+      const now = ctx.currentTime;
+      const notes = [987.77, 1318.51];
+      notes.forEach((freq, idx) => {
+        const offset = idx * 0.1;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + offset);
+        gain.gain.setValueAtTime(0.35, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.22);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.22);
+      });
+    }
+  } catch (err) {
+    console.warn("Audio Alert Warning:", err);
+  }
+};
+
+/* ==========================================================================
+   CACHE-FIRST INSTANT CLOUD ENGINE
    ========================================================================== */
 function bindCafeCloudListener(cafeId, onUpdateCallback) {
   if (!db || !cafeId) return;
@@ -116,7 +197,7 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
     }
     if (typeof onUpdateCallback === 'function') onUpdateCallback();
   }, (err) => {
-    console.warn("Firestore sync background warning:", err);
+    console.warn("Firestore sync warning:", err);
     if (badge) { 
       badge.className = 'sync-badge online'; 
       badge.innerHTML = '⚡ Local Mode'; 
@@ -125,7 +206,6 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
   });
 }
 
-// ক্লাউডে সুরক্ষিত আংশিক সেভ
 window.cloudSave = function() {
   const data = window.getData();
   if (!data || !data.cafeId || !db) return;
@@ -197,7 +277,7 @@ function updateHeaderBrand(data) {
 }
 
 /* ==========================================================================
-   QR ENGINE & TABLE QR UTILITIES
+   QR ENGINE & TABLE UTILITIES
    ========================================================================== */
 function createSafeQR(text) {
   if (!text) return '';
@@ -311,7 +391,6 @@ function sheetBackdropClick(e) {
   if (e.target.id === 'sheet-backdrop') closeSheet();
 }
 
-// সার্ভিস ওয়ার্কার রেজিস্টার
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration skipped:', err));
 }
