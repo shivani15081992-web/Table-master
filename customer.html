@@ -4,65 +4,123 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Customer Self-Order — TableMaster Pro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a1a">
 <link rel="stylesheet" href="shared.css">
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
 <script src="shared.js"></script>
 </head>
 <body class="customer-mode" style="background:var(--cream);">
+  <!-- CUSTOMER HERO HEADER -->
   <header class="customer-hero">
-    <div class="customer-logo-circle">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
-    </div>
+    <div class="customer-logo-circle" id="customer-logo-wrap"></div>
     <h1 class="customer-cafe-name" id="cust-cafe-name">Restaurant</h1>
     <div class="customer-divider"><span></span><i>◆</i><span></span></div>
     <div class="customer-table-badge" id="cust-table-badge">WELCOME</div>
   </header>
 
+  <!-- MAIN CUSTOMER MENU AREA -->
   <main class="customer-main" id="cust-menu-area">
+    <!-- LOADING SPINNER -->
     <div class="customer-loading-wrap" id="cust-loading">
       <div class="customer-loading-spinner"></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:#6b5540;">Loading Menu...</div>
     </div>
+
+    <!-- MENU CONTENT -->
     <div id="cust-menu-content" style="display:none;">
-      <div class="customer-dish-grid" id="cust-dish-grid"></div>
+      <!-- SEARCH INPUT -->
+      <div class="customer-search-wrap" style="position:relative;margin-bottom:14px;">
+        <input type="text" class="customer-search-input" id="cust-search" placeholder="Search dishes..." oninput="custSearchQuery=this.value; renderCustomerMenu();" style="width:100%;padding:12px 14px;background:#fff;border:1px solid var(--cream-border);border-radius:100px;font-size:13px;color:#1a1a1a;">
+      </div>
+
+      <!-- CATEGORY TABS -->
+      <div class="customer-cats-wrap" id="cust-cats-container" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:14px;"></div>
+
+      <!-- DISHES GRID -->
+      <div class="customer-dish-grid" id="cust-dish-grid" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
     </div>
   </main>
 
+  <!-- FLOATING CART BAR -->
   <div class="customer-cart-bar" id="cust-cart-bar" style="display:none;">
     <div class="customer-cart">
       <div>
-        <div class="ccb-label" id="cust-cart-count">0 Items</div>
+        <div class="ccb-label" id="cust-cart-count">0 Items Selected</div>
         <div class="ccb-price" id="cust-cart-total">₹ 0.00</div>
       </div>
-      <button class="ccb-btn" onclick="submitCustomerOrderToKitchen()">Place Order to Kitchen →</button>
+      <button class="ccb-btn" onclick="openCustCartReviewSheet()">View Order →</button>
+    </div>
+  </div>
+
+  <!-- MODAL SHEET -->
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
+    <div class="sheet-modal">
+      <div class="sheet-head">
+        <div class="sheet-title" id="sheet-title" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#1a1a1a;">Review Your Order</div>
+        <button class="btn-x" onclick="closeSheet()">✕</button>
+      </div>
+      <div id="sheet-body"></div>
     </div>
   </div>
 
 <script>
 let custCart = [];
-let targetCafe = null;
-let targetTable = null;
+let targetCafeId = null;
+let targetTableId = null;
+let custSelectedCat = 'All';
+let custSearchQuery = '';
 
 function renderCustomerMenu() {
   const data = window.getData();
+  
+  // Update Cafe Name
   document.getElementById('cust-cafe-name').innerText = data.name || 'Restaurant';
-  const tbl = (data.tables || []).find(t => t.id === targetTable);
+
+  // Smart Logo Handling (Fallback to Golden Vector)
+  const logoWrap = document.getElementById('customer-logo-wrap');
+  if (data.logo && data.logo.trim() !== '') {
+    logoWrap.innerHTML = `<img src="${data.logo}" style="width:100%;height:100%;object-fit:cover;" alt="Logo">`;
+  } else {
+    logoWrap.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Default Logo">`;
+  }
+
+  // Table Badge
+  const tbl = (data.tables || []).find(t => t.id === targetTableId);
   document.getElementById('cust-table-badge').innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
 
   document.getElementById('cust-loading').style.display = 'none';
   document.getElementById('cust-menu-content').style.display = 'block';
 
-  document.getElementById('cust-dish-grid').innerHTML = (data.menu || []).map(d => `
-    <div class="customer-dish-card" onclick="addToCustCart('${d.id}')">
-      <div class="cdc-category">${d.category}</div>
-      <div class="cdc-name">${d.name}</div>
-      <div class="cdc-footer">
-        <div class="cdc-price">₹ ${d.price}</div>
-        <button class="cdc-add-btn">+</button>
-      </div>
-    </div>
+  // Render Category Tabs
+  const cats = ['All', ...new Set((data.menu || []).map(m => m.category))];
+  document.getElementById('cust-cats-container').innerHTML = cats.map(c => `
+    <button class="customer-cat-btn ${custSelectedCat === c ? 'active' : ''}" onclick="custSelectedCat='${c}'; renderCustomerMenu();">${c}</button>
   `).join('');
+
+  // Filter Dishes
+  let dishes = custSelectedCat === 'All' ? (data.menu || []) : (data.menu || []).filter(m => m.category === custSelectedCat);
+  if (custSearchQuery.trim()) {
+    const q = custSearchQuery.toLowerCase();
+    dishes = dishes.filter(d => d.name.toLowerCase().includes(q) || (d.category || '').toLowerCase().includes(q));
+  }
+
+  const grid = document.getElementById('cust-dish-grid');
+  if (dishes.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:30px;color:#8b6d38;font-family:\'Cormorant Garamond\',serif;font-size:18px;">No matching items found.</div>';
+  } else {
+    grid.innerHTML = dishes.map(d => `
+      <div class="customer-dish-card" onclick="addToCustCart('${d.id}')">
+        <div class="cdc-category">${d.category || 'General'}</div>
+        <div class="cdc-name">${d.name}</div>
+        <div class="cdc-footer">
+          <div class="cdc-price">₹ ${d.price}</div>
+          <button class="cdc-add-btn" onclick="event.stopPropagation(); addToCustCart('${d.id}')">+</button>
+        </div>
+      </div>
+    `).join('');
+  }
 
   updateCustCartBar();
 }
@@ -72,8 +130,11 @@ function addToCustCart(dishId) {
   const dish = (data.menu || []).find(d => d.id === dishId);
   if (!dish) return;
   const match = custCart.find(i => i.dishId === dishId);
-  if (match) match.qty += 1;
-  else custCart.push({ dishId, name: dish.name, price: dish.price, qty: 1, isAddOn: true });
+  if (match) {
+    match.qty += 1;
+  } else {
+    custCart.push({ dishId, name: dish.name, price: dish.price, qty: 1, isAddOn: true });
+  }
   updateCustCartBar();
 }
 
@@ -90,51 +151,155 @@ function updateCustCartBar() {
   }
 }
 
+function openCustCartReviewSheet() {
+  const data = window.getData();
+  const subtotal = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
+  const gstRate = parseFloat(data.gstRate) || 0;
+  const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
+  const grandTotal = subtotal + gst;
+
+  const html = `
+    <div style="font-family:'Cormorant Garamond',serif;font-weight:700;margin-bottom:12px;font-size:18px;color:#1a1a1a;">Selected Items</div>
+    ${custCart.map((it, idx) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--cream-border);">
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:13.5px;color:#1a1a1a;">${it.name}</div>
+          <div style="font-size:11px;color:#8b6d38;">₹ ${it.price} × ${it.qty}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="qty-btn" onclick="changeCustQty(${idx}, -1)">−</button>
+          <b style="min-width:18px;text-align:center;">${it.qty}</b>
+          <button class="qty-btn" onclick="changeCustQty(${idx}, 1)">+</button>
+          <b style="min-width:60px;text-align:right;color:#8b6d38;">₹ ${(it.price * it.qty).toFixed(0)}</b>
+        </div>
+      </div>
+    `).join('')}
+    
+    <div style="margin-top:14px;font-size:12.5px;color:#6b5540;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>Subtotal</span><span>₹ ${subtotal.toFixed(2)}</span></div>
+      ${gstRate > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>GST (${gstRate}%)</span><span>₹ ${gst.toFixed(2)}</span></div>` : ''}
+    </div>
+    
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0;padding-top:12px;border-top:1px dashed var(--cream-border);font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#1a1a1a;">
+      <span>Total Due:</span>
+      <span style="color:#8b6d38;">₹ ${grandTotal.toFixed(2)}</span>
+    </div>
+
+    <button class="customer-submit-btn" id="btn-cust-place" onclick="submitCustomerOrderToKitchen()">✓ Confirm & Send Order to Kitchen</button>
+  `;
+  openSheet("Confirm Order", html);
+}
+
+function changeCustQty(idx, delta) {
+  custCart[idx].qty += delta;
+  if (custCart[idx].qty <= 0) custCart.splice(idx, 1);
+  if (custCart.length === 0) {
+    closeSheet();
+    updateCustCartBar();
+    return;
+  }
+  openCustCartReviewSheet();
+  updateCustCartBar();
+}
+
 async function submitCustomerOrderToKitchen() {
-  if (custCart.length === 0 || !db || !targetCafe) return;
+  if (custCart.length === 0 || !db || !targetCafeId) return;
+  const btn = document.getElementById('btn-cust-place');
+  if (btn) { btn.disabled = true; btn.innerText = "Placing order..."; }
+
   try {
-    const cafeRef = db.collection("cafes").doc(targetCafe);
+    const cafeRef = db.collection("cafes").doc(targetCafeId);
     const docSnap = await cafeRef.get();
-    if (!docSnap.exists) return;
+    if (!docSnap.exists) throw new Error("Cafe document not found!");
+
     const cData = docSnap.data();
     if (!cData.orders) cData.orders = [];
+    if (!cData.tables) cData.tables = [];
 
-    const orderNum = 100 + cData.orders.length + 1;
     const subtotal = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
+    const gstRate = parseFloat(cData.gstRate) || 0;
+    const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
+    const total = subtotal + gst;
 
-    cData.orders.push({
-      id: 'ord_' + Date.now(), kotNo: orderNum, billNo: orderNum,
-      tableId: targetTable || 't1', items: custCart,
-      subtotal, total: subtotal, status: 'preparing', source: 'customer_qr',
-      date: window.todayStr(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
+    const existingOrder = cData.orders.find(o => o.tableId === targetTableId && o.status !== 'completed');
+    if (existingOrder) {
+      existingOrder.items.forEach(it => it.isAddOn = false);
+      custCart.forEach(ni => {
+        const m = existingOrder.items.find(i => i.dishId === ni.dishId);
+        if (m) {
+          m.qty += ni.qty;
+          m.isAddOn = true;
+        } else {
+          existingOrder.items.push({ ...ni, isAddOn: true });
+        }
+      });
+      existingOrder.subtotal = existingOrder.items.reduce((s, i) => s + (i.price * i.qty), 0);
+      existingOrder.gst = gstRate > 0 ? (existingOrder.subtotal * (gstRate / 100)) : 0;
+      existingOrder.total = existingOrder.subtotal + existingOrder.gst;
+      existingOrder.status = 'preparing';
+    } else {
+      const orderNum = 100 + cData.orders.length + 1;
+      cData.orders.push({
+        id: 'ord_' + Date.now(),
+        kotNo: orderNum,
+        billNo: orderNum,
+        tableId: targetTableId || 't1',
+        items: custCart.map(it => ({ ...it, isAddOn: true })),
+        subtotal,
+        gst,
+        gstRate,
+        total,
+        status: 'preparing',
+        source: 'customer_qr',
+        date: window.todayStr(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+    }
 
-    const tbl = (cData.tables || []).find(t => t.id === targetTable);
+    const tbl = cData.tables.find(t => t.id === targetTableId);
     if (tbl) tbl.status = 'occupied';
 
-    await cafeRef.update({ orders: cData.orders, tables: cData.tables });
+    // শুধুমাত্র orders ও tables আপডেট করা হচ্ছে যাতে কোনো সেটিংস ডেটা ক্ষতিগ্রস্ত না হয়
+    await cafeRef.update({
+      orders: cData.orders,
+      tables: cData.tables
+    });
+
     custCart = [];
+    closeSheet();
     document.getElementById('cust-cart-bar').style.display = 'none';
     document.getElementById('cust-menu-area').innerHTML = `
-      <div style="text-align:center;padding:60px 20px;">
-        <div style="font-size:48px;">✓</div>
-        <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;margin-top:10px;">Order Placed Directly to Kitchen!</h2>
-        <p style="color:#6b5540;font-size:13px;margin-top:6px;">Your food is being prepared. Thank you!</p>
+      <div class="customer-success">
+        <div class="customer-success-icon">✓</div>
+        <div class="customer-success-title">Order Placed Successfully!</div>
+        <div class="customer-success-text">Your order has been dispatched directly to the kitchen.</div>
+        <div class="customer-success-hint">Food is being prepared, please relax 🍽️</div>
+        <button class="customer-submit-btn" style="margin-top:24px;max-width:260px;" onclick="location.reload()">Order More</button>
       </div>
     `;
-  } catch(err) {
-    alert("Order Submission Failed: " + err.message);
+  } catch (err) {
+    alert("Order placement failed: " + err.message);
+    if (btn) { btn.disabled = false; btn.innerText = "✓ Confirm & Send Order to Kitchen"; }
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     const params = new URLSearchParams(window.location.search);
-    targetCafe = params.get('cafe');
-    targetTable = params.get('table');
-    if (targetCafe) bindCafeCloudListener(targetCafe, renderCustomerMenu);
-    else document.getElementById('cust-loading').innerHTML = 'Invalid Table QR Code!';
+    targetCafeId = params.get('cafe');
+    targetTableId = params.get('table');
+
+    if (targetCafeId) {
+      bindCafeCloudListener(targetCafeId, renderCustomerMenu);
+    } else {
+      document.getElementById('cust-loading').innerHTML = `
+        <div class="customer-error-wrap">
+          <div class="customer-error-icon">❌</div>
+          <div class="customer-error-title">Invalid QR Code</div>
+          <div class="customer-error-text">Please scan the table QR code again or contact staff.</div>
+        </div>
+      `;
+    }
   }
 });
 </script>
