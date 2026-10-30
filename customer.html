@@ -12,7 +12,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
 <script src="shared.js"></script>
 <style>
-/* Instant Load & Customer Polish */
 .customer-hero {
   background: radial-gradient(circle at 15% 10%, rgba(201,169,97,0.15) 0%, transparent 45%),
     linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%);
@@ -51,17 +50,17 @@
     <div class="customer-logo-circle" id="customer-logo-wrap">
       <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>" style="width:100%;height:100%;object-fit:cover;" alt="Logo">
     </div>
-    <h1 class="customer-cafe-name" id="cust-cafe-name">Loading Restaurant...</h1>
+    <h1 class="customer-cafe-name" id="cust-cafe-name">Restaurant Menu</h1>
     <div class="customer-divider" style="display:flex;align-items:center;gap:10px;margin:8px auto;max-width:160px;color:#c9a961;font-size:8px;">
       <span style="flex:1;height:1px;background:rgba(201,169,97,0.4);"></span><i>◆</i><span style="flex:1;height:1px;background:rgba(201,169,97,0.4);"></span>
     </div>
-    <div class="customer-table-badge" id="cust-table-badge">TABLE MENU</div>
+    <div class="customer-table-badge" id="cust-table-badge">TABLE ORDER</div>
   </header>
 
   <!-- MAIN CUSTOMER MENU AREA -->
   <main class="customer-main" id="cust-menu-area" style="padding:14px;padding-bottom:110px;max-width:800px;margin:0 auto;">
     
-    <!-- LOADING SPINNER (AUTO HIDES) -->
+    <!-- LOADING SPINNER -->
     <div class="customer-loading-wrap" id="cust-loading" style="text-align:center;padding:50px 20px;">
       <div class="customer-loading-spinner" style="width:40px;height:40px;margin:0 auto 14px;border:3px solid #ebe3d2;border-top-color:#c9a961;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:#6b5540;font-weight:600;">খাবার মেনু লোড হচ্ছে...</div>
@@ -114,7 +113,6 @@ let custSearchQuery = '';
 function renderCustomerMenu() {
   const data = window.getData();
   
-  // রেস্তোরাঁর নাম ও লোগো প্রদর্শন
   document.getElementById('cust-cafe-name').innerText = data.name || 'TableMaster Restaurant';
 
   const logoWrap = document.getElementById('customer-logo-wrap');
@@ -124,21 +122,17 @@ function renderCustomerMenu() {
     logoWrap.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Default Logo">`;
   }
 
-  // টেবিল নাম
   const tbl = (data.tables || []).find(t => t.id === targetTableId);
   document.getElementById('cust-table-badge').innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
 
-  // লোডিং বন্ধ করে মেনু প্রদর্শন
   document.getElementById('cust-loading').style.display = 'none';
   document.getElementById('cust-menu-content').style.display = 'block';
 
-  // ক্যাটাগরি তৈরি
   const cats = ['All', ...new Set((data.menu || []).map(m => m.category || 'General'))];
   document.getElementById('cust-cats-container').innerHTML = cats.map(c => `
     <button class="customer-cat-btn ${custSelectedCat === c ? 'active' : ''}" onclick="custSelectedCat='${c}'; renderCustomerMenu();">${c}</button>
   `).join('');
 
-  // ফিল্টার করা মেনু
   let dishes = custSelectedCat === 'All' ? (data.menu || []) : (data.menu || []).filter(m => (m.category || 'General') === custSelectedCat);
   if (custSearchQuery.trim()) {
     const q = custSearchQuery.toLowerCase();
@@ -224,7 +218,7 @@ function openCustCartReviewSheet() {
       <span style="color:#8b6d38;">₹ ${grandTotal.toFixed(2)}</span>
     </div>
 
-    <button class="customer-submit-btn" id="btn-cust-place" onclick="submitCustomerOrderToKitchen()">✓ Confirm & Send Order to Kitchen</button>
+    <button class="btn-primary" id="btn-cust-place" onclick="submitCustomerOrderToKitchen()">✓ Confirm & Send Order to Kitchen</button>
   `;
   openSheet("Confirm Order", html);
 }
@@ -311,7 +305,7 @@ async function submitCustomerOrderToKitchen() {
         <div style="width:70px;height:70px;background:#10b981;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 18px;">✓</div>
         <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#1a1a1a;margin-bottom:6px;">Order Dispatched to Kitchen!</h2>
         <p style="color:#6b5540;font-size:13.5px;">Your food is being prepared. Thank you for dining with us! 🍽️</p>
-        <button class="customer-submit-btn" style="margin-top:24px;max-width:240px;" onclick="location.reload()">Order More Items</button>
+        <button class="btn-primary" style="margin-top:24px;max-width:240px;" onclick="location.reload()">Order More Items</button>
       </div>
     `;
   } catch (err) {
@@ -320,7 +314,6 @@ async function submitCustomerOrderToKitchen() {
   }
 }
 
-// ইনস্ট্যান্ট লোডার ও অথেন্টিকেশন বাইপাস
 window.addEventListener('DOMContentLoaded', async () => {
   if (initFirebase()) {
     const params = new URLSearchParams(window.location.search);
@@ -336,7 +329,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // ব্যাকগ্রাউন্ডে সাইন-ইন করে রিয়েলটাইম ডেটা ফেচ
     try {
       if (!auth.currentUser) {
         await auth.signInAnonymously();
@@ -345,7 +337,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       console.warn("Anonymous login skipped:", e);
     }
 
-    // সরাসরি ফায়ারস্টোর থেকে ডকুমেন্ট রিয়েলটাইম লিসেন
     db.collection("cafes").doc(targetCafeId).onSnapshot((doc) => {
       if (doc.exists) {
         window.RESTAURANT_DATA = doc.data();
@@ -356,7 +347,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     }, (err) => {
       console.error("Firestore fetch error:", err);
-      // অফলাইন/লিসেনার ফেইল হলে সরাসরি একবার ফেচ করার চেষ্টা
       db.collection("cafes").doc(targetCafeId).get().then((doc) => {
         if (doc.exists) {
           window.RESTAURANT_DATA = doc.data();
