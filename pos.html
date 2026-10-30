@@ -113,6 +113,7 @@ let cartState = { tableId: '', items: [] };
 let posCategory = 'All';
 let posSearch = '';
 let activeCafeId = '';
+let lastReadyServeCount = -1;
 
 function handleLogout() {
   const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
@@ -136,7 +137,6 @@ function setupRoleNavigation() {
   const nav = document.getElementById('waiter-dynamic-nav');
   
   if (role === 'waiter') {
-    // Waiter has ZERO access to Reports, Expenses, Platforms, or Settings
     nav.innerHTML = `
       <a href="pos.html" class="bar-item active">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
@@ -145,7 +145,6 @@ function setupRoleNavigation() {
     `;
     document.getElementById('active-user-role').innerText = "WAITER";
   } else {
-    // Owner gets full navigation
     nav.innerHTML = `
       <a href="index.html" class="bar-item"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 011 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg><span>Home</span></a>
       <a href="pos.html" class="bar-item active"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg><span>Order</span></a>
@@ -167,6 +166,12 @@ function renderPOS() {
   const readyBanner = document.getElementById('box-ready-serving');
   const readyList = document.getElementById('ready-orders-list');
   const countBadge = document.getElementById('count-ready-orders');
+
+  // খাবার রেডি হলেই ওয়েটারের ফোনে সার্ভিস বেল (Triple Chime) বেজে উঠবে
+  if (lastReadyServeCount !== -1 && readyOrders.length > lastReadyServeCount) {
+    window.playAlertTone('ready');
+  }
+  lastReadyServeCount = readyOrders.length;
 
   if (readyOrders.length > 0) {
     readyBanner.style.display = 'block';
@@ -196,11 +201,11 @@ function renderPOS() {
     </option>
   `).join('');
 
-  // 3. Check Active Order on Selected Table
+  // 3. Active Order Check
   const activeOrder = (data.orders || []).find(o => o.tableId === cartState.tableId && o.status !== 'completed');
   document.getElementById('active-order-alert').style.display = activeOrder ? 'block' : 'none';
 
-  // 4. Categories & Menu Grid
+  // 4. Categories & Dishes Grid
   const cats = ['All', ...new Set((data.menu || []).map(m => m.category || 'General'))];
   document.getElementById('cat-tabs').innerHTML = cats.map(c => `
     <button class="cat-btn ${posCategory === c ? 'active':''}" onclick="posCategory='${c}'; renderPOS();">${c}</button>
@@ -370,7 +375,6 @@ async function dispatchOrderToKitchen() {
   }
 }
 
-// WAITER MARKS FOOD AS SERVED AT THE TABLE
 async function confirmFoodServed(orderId) {
   if (!activeCafeId || !db) return;
   try {
@@ -382,7 +386,7 @@ async function confirmFoodServed(orderId) {
     const orders = cData.orders || [];
     const o = orders.find(ord => ord.id === orderId);
     if (o) {
-      o.status = 'served'; // Served and ready for billing
+      o.status = 'served';
       await cafeRef.update({ orders });
       alert("Food marked as Served at the table! ✓");
       renderPOS();
