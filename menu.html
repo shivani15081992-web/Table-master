@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Menu & Settings — TableMaster Pro</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-box">
+      <span id="txt-cafe-name">Menu & Settings</span>
+      <div class="role-badge">ADMIN</div>
+    </div>
+    <div class="top-actions">
+      <div class="sync-badge syncing" id="sync-status">🔄 Online</div>
+    </div>
+  </header>
+
+  <main class="main-wrapper">
+    <!-- MENU MANAGEMENT -->
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>Food Menu Items</span>
+        <button class="btn-sm-outline" onclick="openAddDishModal()">+ Add New Dish</button>
+      </div>
+      <div id="menu-items-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <!-- STAFF MANAGEMENT (10 DIGIT PHONE) -->
+    <div class="tm-card">
+      <div class="tm-card-title">
+        <span>Staff Accounts (10-Digit Mobile)</span>
+        <button class="btn-sm-outline" onclick="openAddStaffModal()">+ Add Staff</button>
+      </div>
+      <div id="staff-members-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <!-- CAFE SETTINGS -->
+    <div class="tm-card">
+      <div class="tm-card-title">Restaurant Profile Settings</div>
+      <label>Restaurant Name</label>
+      <input type="text" id="cfg-name">
+      <label>Contact Phone</label>
+      <input type="text" id="cfg-phone">
+      <label>Address</label>
+      <input type="text" id="cfg-addr">
+      <label>UPI ID (Scan to Pay)</label>
+      <input type="text" id="cfg-upi">
+      <button class="btn-primary" onclick="saveCafeSettings()">Update Settings</button>
+    </div>
+  </main>
+
+  <nav class="bottom-bar">
+    <a href="index.html" class="bar-item">Home</a>
+    <a href="pos.html" class="bar-item">Order</a>
+    <a href="kitchen.html" class="bar-item">Kitchen</a>
+    <a href="bills.html" class="bar-item">Bills</a>
+    <a href="menu.html" class="bar-item active">Menu</a>
+  </nav>
+
+  <!-- MODAL -->
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="sheetBackdropClick(event)">
+    <div class="sheet-modal">
+      <div class="sheet-head">
+        <div class="sheet-title" id="sheet-title">Config</div>
+        <button class="btn-x" onclick="closeSheet()">✕</button>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
+  </div>
+
+<script>
+function renderMenu() {
+  const data = window.getData();
+  updateHeaderBrand(data);
+
+  // Render Dishes
+  document.getElementById('menu-items-list').innerHTML = (data.menu || []).map(d => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;">
+      <div>
+        <div style="font-weight:700;">${d.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${d.category}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-weight:800;color:var(--primary);">₹ ${d.price}</span>
+        <button class="btn-danger" style="padding:4px 8px;font-size:10px;" onclick="deleteDishItem('${d.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Render Staff List
+  document.getElementById('staff-members-list').innerHTML = (data.staff || []).map(s => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #f1f5f9;">
+      <div>
+        <strong>${s.name}</strong> (📞 ${s.phone})
+        <div style="font-size:11px;color:var(--text-muted);">${s.role.toUpperCase()}</div>
+      </div>
+      <button class="btn-danger" style="padding:4px 8px;font-size:10px;" onclick="deleteStaffAccount('${s.id}')">✕</button>
+    </div>
+  `).join('');
+
+  document.getElementById('cfg-name').value = data.name || '';
+  document.getElementById('cfg-phone').value = data.phone || '';
+  document.getElementById('cfg-addr').value = data.address || '';
+  document.getElementById('cfg-upi').value = data.upi || '';
+}
+
+function openAddDishModal() {
+  const form = `
+    <label>Dish Name</label>
+    <input type="text" id="dish-name" placeholder="Chicken Sandwich">
+    <label>Category</label>
+    <input type="text" id="dish-cat" placeholder="Main Course / Beverages">
+    <label>Price (₹)</label>
+    <input type="number" id="dish-price" placeholder="120">
+    <button class="btn-primary" onclick="saveDish()">Save Item</button>
+  `;
+  openSheet("Add New Food Item", form);
+}
+function saveDish() {
+  const data = window.getData();
+  const name = document.getElementById('dish-name').value.trim();
+  const category = document.getElementById('dish-cat').value.trim() || 'General';
+  const price = parseFloat(document.getElementById('dish-price').value);
+  if (!name || isNaN(price)) return;
+  if (!data.menu) data.menu = [];
+  data.menu.push({ id: 'm_' + Date.now(), name, category, price });
+  window.cloudSave(); closeSheet(); renderMenu();
+}
+function deleteDishItem(id) {
+  const data = window.getData();
+  if (!confirm("Delete dish?")) return;
+  data.menu = (data.menu || []).filter(d => d.id !== id);
+  window.cloudSave(); renderMenu();
+}
+
+function openAddStaffModal() {
+  const form = `
+    <label>Staff Full Name</label>
+    <input type="text" id="stf-add-name" placeholder="Rohan Kumar">
+    <label>Staff 10-Digit Mobile Number</label>
+    <input type="tel" id="stf-add-phone" pattern="[0-9]{10}" maxlength="10" placeholder="9876543210">
+    <label>Password (Min 6 chars)</label>
+    <input type="password" id="stf-add-pass" placeholder="••••••••">
+    <label>Role</label>
+    <select id="stf-add-role">
+      <option value="waiter">Waiter (POS & Orders)</option>
+      <option value="kitchen">Kitchen Staff (KOT Live)</option>
+    </select>
+    <button class="btn-primary" onclick="saveStaff()">Create Staff Account</button>
+  `;
+  openSheet("Register Staff", form);
+}
+async function saveStaff() {
+  const data = window.getData();
+  const name = document.getElementById('stf-add-name').value.trim();
+  const phone = document.getElementById('stf-add-phone').value.trim();
+  const pass = document.getElementById('stf-add-pass').value.trim();
+  const role = document.getElementById('stf-add-role').value;
+
+  if (!/^[0-9]{10}$/.test(phone)) {
+    alert("Mobile number must be exactly 10 digits!");
+    return;
+  }
+  if (pass.length < 6) { alert("Password min 6 chars!"); return; }
+
+  const staffEmail = `${phone}@tablemaster.com`;
+  try {
+    let secondaryApp = null;
+    try { secondaryApp = firebase.app("Secondary"); } catch(e) { secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary"); }
+    const cred = await secondaryApp.auth().createUserWithEmailAndPassword(staffEmail, pass);
+    await secondaryApp.delete();
+
+    await db.collection("users").doc(cred.user.uid).set({ cafeId: data.cafeId, role, name, phone });
+    if (!data.staff) data.staff = [];
+    data.staff.push({ id: cred.user.uid, name, phone, role });
+    window.cloudSave(); closeSheet(); renderMenu();
+    alert(`Staff Account created!\nMobile: ${phone}\nPass: ${pass}`);
+  } catch(err) {
+    alert("Error creating staff: " + err.message);
+  }
+}
+function deleteStaffAccount(id) {
+  const data = window.getData();
+  if (!confirm("Delete staff?")) return;
+  data.staff = (data.staff || []).filter(s => s.id !== id);
+  db.collection("users").doc(id).delete().catch(()=>{});
+  window.cloudSave(); renderMenu();
+}
+
+function saveCafeSettings() {
+  const data = window.getData();
+  data.name = document.getElementById('cfg-name').value.trim();
+  data.phone = document.getElementById('cfg-phone').value.trim();
+  data.address = document.getElementById('cfg-addr').value.trim();
+  data.upi = document.getElementById('cfg-upi').value.trim();
+  window.cloudSave(); alert("Settings saved!"); renderMenu();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (initFirebase()) {
+    auth.onAuthStateChanged((user) => {
+      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (cafeId) bindCafeCloudListener(cafeId, renderMenu);
+      else window.location.href = 'index.html';
+    });
+  }
+});
+</script>
+</body>
+</html>
