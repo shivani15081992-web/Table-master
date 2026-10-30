@@ -39,7 +39,6 @@
   --radius-md: 10px;
   --shadow-sm: 0 1px 3px rgba(15,23,42,0.06);
   --shadow-md: 0 8px 24px -4px rgba(15,23,42,0.08);
-  /* Premium Palette */
   --gold: #c9a961;
   --gold-dark: #8b6d38;
   --gold-light: #e8d5a1;
@@ -394,7 +393,7 @@ body.customer-mode { background: var(--cream); }
 
 <script>
 /* ==========================================================================
-   FIREBASE CONFIG (NEW PROJECT: the-table-master)
+   FIREBASE CONFIG
    ========================================================================== */
 const firebaseConfig = {
   apiKey: "AIzaSyDfDz5MnOvokr_MQH_sG5FxkHUGVphuOLU",
@@ -465,7 +464,12 @@ function createNewCafeTemplate(cafeId, ownerUid, name, owner, phone, pin) {
 window.RESTAURANT_DATA = {
   cafeId: 'default_cafe', name: 'TableMaster Bistro', phone: '', address: '',
   masterPin: '1234', gstRate: 0, serviceRate: 0,
-  tables: [{ id: 't1', name: 'T-01', seats: 4, status: 'available', booking: null }],
+  tables: [
+    { id: 't1', name: 'T-01', seats: 2, status: 'available', booking: null },
+    { id: 't2', name: 'T-02', seats: 4, status: 'available', booking: null },
+    { id: 't3', name: 'T-03', seats: 4, status: 'available', booking: null },
+    { id: 't4', name: 'T-04', seats: 6, status: 'available', booking: null }
+  ],
   menu: [{ id: 'm1', name: 'Special Chicken Biryani', category: 'Main Course', price: 190 }],
   platforms: [
     { id: 'plt_swiggy', name: 'Swiggy', commissionRate: 20 },
@@ -486,15 +490,18 @@ function bindCafeCloudListener(cafeId) {
 
   currentCafeListener = db.collection("cafes").doc(cafeId).onSnapshot((docSnap) => {
     if (docSnap.exists) {
-      window.RESTAURANT_DATA = Object.assign({}, window.RESTAURANT_DATA, docSnap.data());
+      const serverData = docSnap.data();
+      // টেবিল গায়েব হওয়া রোধ করতে মার্জ করা হচ্ছে
+      window.RESTAURANT_DATA = Object.assign({}, window.RESTAURANT_DATA, serverData);
       window.RESTAURANT_DATA.cafeId = cafeId;
-      if (!window.RESTAURANT_DATA.platforms) {
-        window.RESTAURANT_DATA.platforms = [
-          { id: 'plt_swiggy', name: 'Swiggy', commissionRate: 20 },
-          { id: 'plt_zomato', name: 'Zomato', commissionRate: 22 }
+      if (!window.RESTAURANT_DATA.tables || !window.RESTAURANT_DATA.tables.length) {
+        window.RESTAURANT_DATA.tables = [
+          { id: 't1', name: 'T-01', seats: 2, status: 'available', booking: null },
+          { id: 't2', name: 'T-02', seats: 4, status: 'available', booking: null },
+          { id: 't3', name: 'T-03', seats: 4, status: 'available', booking: null },
+          { id: 't4', name: 'T-04', seats: 6, status: 'available', booking: null }
         ];
       }
-      if (!window.RESTAURANT_DATA.platformPayouts) window.RESTAURANT_DATA.platformPayouts = [];
       try { localStorage.setItem('tmpro_cafe_cache_' + cafeId, JSON.stringify(window.RESTAURANT_DATA)); } catch(e){}
     }
     if (badge) { badge.className = 'sync-badge online'; badge.innerHTML = '☁️ Online'; }
@@ -530,7 +537,7 @@ function checkAuth() {
   auth.onAuthStateChanged(async (user) => {
     if (window.IS_CUSTOMER_MODE) return;
 
-    if (user) {
+    if (user && !user.isAnonymous) {
       let cafeId = 'cafe_' + user.uid;
       let userRole = 'owner';
 
@@ -2248,7 +2255,7 @@ function showAllTableQRs() {
 }
 
 /* ==========================================================================
-   CUSTOMER SELF-ORDER FLOW
+   CUSTOMER SELF-ORDER (REALTIME SYNC & ZERO CONFLICT)
    ========================================================================== */
 window.IS_CUSTOMER_MODE = false;
 let customerCafeId = null;
@@ -2282,11 +2289,7 @@ async function initCustomerMode(urlParams) {
     return;
   }
 
-  // Auth anonymously if required
-  if (auth && !auth.currentUser) {
-    try { await auth.signInAnonymously(); } catch(e) {}
-  }
-
+  // ফায়ারবেস অ্যানোনিমাস লগইন সম্পূর্ণ বাদ দেওয়া হয়েছে যাতে ওনার সেশন লগআউট না হয়
   if (db) {
     customerCafeListener = db.collection("cafes").doc(customerCafeId).onSnapshot((doc) => {
       if (doc.exists) {
@@ -2446,6 +2449,7 @@ async function submitCustomerOrder() {
     if (!docSnap.exists) throw new Error('Cafe not found');
     const currentData = docSnap.data();
     if (!currentData.orders) currentData.orders = [];
+    if (!currentData.tables) currentData.tables = [];
 
     const subtotal = customerCart.items.reduce((s, i) => s + i.price * i.qty, 0);
     const gstRate = parseFloat(currentData.gstRate) || 0;
@@ -2481,10 +2485,16 @@ async function submitCustomerOrder() {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
     }
-    const tbl = (currentData.tables || []).find(t => t.id === customerTableId);
+
+    // টেবিল স্ট্যাটাস আপডেট কিন্তু টেবিল ডেটা মুছে যাবে না
+    const tbl = currentData.tables.find(t => t.id === customerTableId);
     if (tbl) tbl.status = 'occupied';
 
-    await cafeRef.set(currentData, { merge: true });
+    // শুধুমাত্র orders ও tables আপডেট করা হচ্ছে যাতে কোনো সেটিংস ডেটা ক্ষতিগ্রস্ত না হয়
+    await cafeRef.update({
+      orders: currentData.orders,
+      tables: currentData.tables
+    });
 
     customerCart.items = [];
     closeSheet();
@@ -2546,7 +2556,6 @@ function routeBasedOnUrl() {
 }
 
 window.addEventListener('load', () => {
-  // Service Worker Registration for PWA
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => console.log('Service Worker Active with scope:', reg.scope))
