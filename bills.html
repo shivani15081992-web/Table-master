@@ -41,10 +41,10 @@
       </div>
 
       <!-- FILTER BAR -->
-      <div class="filter-bar">
-        <button class="filter-chip active" id="chip-today" onclick="setBillFilter('today')">Today</button>
-        <button class="filter-chip" id="chip-unpaid" onclick="setBillFilter('unpaid')">Unpaid Only</button>
-        <button class="filter-chip" id="chip-all" onclick="setBillFilter('all')">All Time</button>
+      <div class="filter-bar" style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="btn-sm-outline active" id="chip-today" onclick="setBillFilter('today')">Today</button>
+        <button class="btn-sm-outline" id="chip-unpaid" onclick="setBillFilter('unpaid')">Unpaid Only</button>
+        <button class="btn-sm-outline" id="chip-all" onclick="setBillFilter('all')">All Time</button>
       </div>
 
       <!-- BILLS LIST -->
@@ -91,6 +91,7 @@
 
 <script>
 let currentBillFilter = 'today';
+let activeCafeId = '';
 
 function handleLogout() {
   if (confirm("Log out from Bills Terminal?")) {
@@ -167,23 +168,40 @@ function renderBills() {
   }).join('');
 }
 
-function settleBill(orderId) {
+async function settleBill(orderId) {
+  if (!activeCafeId || !db) return;
   const data = window.getData();
   const o = (data.orders || []).find(ord => ord.id === orderId);
   if (!o) return;
   if (!confirm(`Confirm settlement of ₹ ${(o.total||0).toFixed(2)} for Bill #${o.billNo}?`)) return;
-  o.status = 'completed';
-  const tbl = (data.tables || []).find(t => t.id === o.tableId);
-  if (tbl) {
-    tbl.status = 'available';
-    tbl.booking = null;
+
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const orders = cData.orders || [];
+    const tables = cData.tables || [];
+
+    const targetOrder = orders.find(ord => ord.id === orderId);
+    if (targetOrder) targetOrder.status = 'completed';
+
+    const targetTbl = tables.find(t => t.id === o.tableId);
+    if (targetTbl) {
+      targetTbl.status = 'available';
+      targetTbl.booking = null;
+    }
+
+    await cafeRef.update({ orders, tables });
+    renderBills();
+  } catch(err) {
+    alert("Settlement failed: " + err.message);
   }
-  window.cloudSave(); 
-  renderBills();
 }
 
 /* ==========================================================================
-   EDIT RUNNING ORDER & RE-CALCULATE TOTALS
+   EDIT RUNNING ORDER & ATOMIC RE-CALCULATE
    ========================================================================== */
 function recalcOrder(o) {
   o.subtotal = o.items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -225,48 +243,77 @@ function openEditOrderSheet(orderId) {
   openSheet('Edit Bill #' + o.billNo, html);
 }
 
-function editItemQty(orderId, idx, delta) {
-  const data = window.getData();
-  const o = (data.orders || []).find(ord => ord.id === orderId);
-  if (!o || !o.items[idx]) return;
-  o.items[idx].qty += delta;
-  if (o.items[idx].qty <= 0) o.items.splice(idx, 1);
-  if (o.items.length === 0) {
-    if (confirm("All items removed. Cancel entire bill?")) {
-      data.orders = data.orders.filter(ord => ord.id !== orderId);
-      const tbl = (data.tables || []).find(t => t.id === o.tableId);
-      if (tbl) tbl.status = 'available';
-      window.cloudSave(); closeSheet(); renderBills();
-      return;
+async function editItemQty(orderId, idx, delta) {
+  if (!activeCafeId || !db) return;
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    let orders = cData.orders || [];
+    let tables = cData.tables || [];
+    const o = orders.find(ord => ord.id === orderId);
+    if (!o || !o.items[idx]) return;
+
+    o.items[idx].qty += delta;
+    if (o.items[idx].qty <= 0) o.items.splice(idx, 1);
+
+    if (o.items.length === 0) {
+      if (confirm("All items removed. Cancel entire bill?")) {
+        orders = orders.filter(ord => ord.id !== orderId);
+        const tbl = tables.find(t => t.id === o.tableId);
+        if (tbl) tbl.status = 'available';
+        await cafeRef.update({ orders, tables });
+        closeSheet(); renderBills();
+        return;
+      }
     }
+
+    recalcOrder(o);
+    await cafeRef.update({ orders });
+    openEditOrderSheet(orderId);
+    renderBills();
+  } catch(err) {
+    console.error("Edit item failed:", err);
   }
-  recalcOrder(o);
-  window.cloudSave();
-  openEditOrderSheet(orderId);
-  renderBills();
 }
 
-function removeItem(orderId, idx) {
-  const data = window.getData();
-  const o = (data.orders || []).find(ord => ord.id === orderId);
-  if (!o) return;
+async function removeItem(orderId, idx) {
+  if (!activeCafeId || !db) return;
   if (!confirm("Remove this item from the bill?")) return;
-  o.items.splice(idx, 1);
-  if (o.items.length === 0) {
-    data.orders = data.orders.filter(ord => ord.id !== orderId);
-    const tbl = (data.tables || []).find(t => t.id === o.tableId);
-    if (tbl) tbl.status = 'available';
-    window.cloudSave(); closeSheet(); renderBills();
-    return;
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    let orders = cData.orders || [];
+    let tables = cData.tables || [];
+    const o = orders.find(ord => ord.id === orderId);
+    if (!o) return;
+
+    o.items.splice(idx, 1);
+    if (o.items.length === 0) {
+      orders = orders.filter(ord => ord.id !== orderId);
+      const tbl = tables.find(t => t.id === o.tableId);
+      if (tbl) tbl.status = 'available';
+      await cafeRef.update({ orders, tables });
+      closeSheet(); renderBills();
+      return;
+    }
+
+    recalcOrder(o);
+    await cafeRef.update({ orders });
+    openEditOrderSheet(orderId);
+    renderBills();
+  } catch(err) {
+    console.error("Remove item failed:", err);
   }
-  recalcOrder(o);
-  window.cloudSave();
-  openEditOrderSheet(orderId);
-  renderBills();
 }
 
 /* ==========================================================================
-   THERMAL RECEIPT MODAL (WITH PROMOTION & SMART LOGO)
+   THERMAL RECEIPT (WITH UPI QR, GOOGLE REVIEW QR & DEVELOPER BRANDING)
    ========================================================================== */
 function showReceiptSheet(orderId) {
   const data = window.getData();
@@ -275,6 +322,7 @@ function showReceiptSheet(orderId) {
 
   const upiString = `upi://pay?pa=${data.upi}&pn=${encodeURIComponent(data.name)}&am=${(o.total||0).toFixed(2)}&cu=INR&tn=Bill-${o.billNo}`;
   const upiQrImg = createSafeQR(upiString);
+  const reviewQrImg = (data.googleReview && data.googleReview.trim() !== '') ? createSafeQR(data.googleReview.trim()) : '';
   const logoToUse = (data.logo && data.logo.trim() !== '') ? data.logo : DEFAULT_GOLD_SVG_LOGO;
 
   const receiptHtml = `
@@ -308,12 +356,24 @@ function showReceiptSheet(orderId) {
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:12px;">
         <span>Grand Total:</span><span>₹ ${(o.total||0).toFixed(2)}</span>
       </div>
+
+      <!-- UPI SCAN TO PAY QR -->
       ${upiQrImg ? `
         <div class="c" style="margin-top:6px;">
-          <img src="${upiQrImg}" class="qr-img">
+          <img src="${upiQrImg}" class="qr-img" alt="UPI QR">
           <div style="font-size:8.5px;margin-top:2px;font-weight:700;">Scan UPI to Pay</div>
         </div>
       ` : ''}
+
+      <!-- GOOGLE REVIEW QR -->
+      ${reviewQrImg ? `
+        <hr>
+        <div class="c" style="margin-top:4px;">
+          <div style="font-size:8.5px;font-weight:700;">Rate Us on Google / আপনার রিভিউ দিন</div>
+          <img src="${reviewQrImg}" style="width:70px;height:70px;display:block;margin:3px auto;" alt="Review QR">
+        </div>
+      ` : ''}
+
       <hr>
       <!-- DEVELOPER BRANDING & CUSTOM PROMOTION -->
       <div class="receipt-dev">
@@ -340,9 +400,9 @@ function printThermalBill() {
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
     auth.onAuthStateChanged((user) => {
-      let cafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (cafeId) {
-        bindCafeCloudListener(cafeId, renderBills);
+      activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
+      if (activeCafeId) {
+        bindCafeCloudListener(activeCafeId, renderBills);
       } else {
         window.location.href = 'index.html';
       }
