@@ -96,8 +96,7 @@ let activeCafeId = '';
 
 function handleLogout() {
   if (confirm("Log out from Bills Terminal?")) {
-    sessionStorage.removeItem('tmpro_role_mode');
-    sessionStorage.removeItem('tmpro_cafe_id');
+    sessionStorage.clear();
     auth.signOut().then(() => {
       window.location.href = 'index.html';
     });
@@ -224,9 +223,6 @@ async function settleBill(orderId) {
   }
 }
 
-/* ==========================================================================
-   EDIT RUNNING ORDER & RE-CALCULATE
-   ========================================================================== */
 function recalcOrder(o) {
   o.subtotal = o.items.reduce((s, i) => s + i.price * i.qty, 0);
   const gstRate = o.gstRate || 0;
@@ -336,9 +332,6 @@ async function removeItem(orderId, idx) {
   }
 }
 
-/* ==========================================================================
-   THERMAL RECEIPT PRINTING
-   ========================================================================== */
 function showReceiptSheet(orderId) {
   const data = window.getData();
   const o = (data.orders || []).find(ord => ord.id === orderId);
@@ -423,20 +416,32 @@ function printThermalBill() {
 
 window.addEventListener('DOMContentLoaded', () => {
   if (initFirebase()) {
-    auth.onAuthStateChanged((user) => {
-      const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
-      // Restrict Waiters from accessing Billing ledger directly
-      if (role === 'waiter') {
-        window.location.href = 'pos.html';
+    auth.onAuthStateChanged(async (user) => {
+      if (!user || user.isAnonymous) {
+        window.location.href = 'index.html';
         return;
       }
 
-      activeCafeId = sessionStorage.getItem('tmpro_cafe_id') || (user ? 'cafe_' + user.uid : null);
-      if (activeCafeId) {
-        bindCafeCloudListener(activeCafeId, renderBills);
-      } else {
-        window.location.href = 'index.html';
+      // ব্যবহারকারীর রোল যাচাই
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      if (userDoc.exists) {
+        const uRole = userDoc.data().role;
+        if (uRole === 'waiter') {
+          window.location.href = 'pos.html';
+          return;
+        } else if (uRole === 'kitchen') {
+          window.location.href = 'kitchen.html';
+          return;
+        }
       }
+
+      // ওনার হিসেবে কনফার্মেশন
+      activeCafeId = 'cafe_' + user.uid;
+      sessionStorage.setItem('tmpro_cafe_id', activeCafeId);
+      sessionStorage.setItem('tmpro_role_mode', 'owner');
+      window.CURRENT_USER_ROLE = 'owner';
+
+      bindCafeCloudListener(activeCafeId, renderBills);
     });
   }
 });
