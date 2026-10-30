@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>TableMaster Pro — Cloud Restaurant Management</title>
 
-<!-- PWA & Android/iOS Web App Support -->
+<!-- PWA & Direct App Install Support (No external PNG needed) -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a1a1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TableMaster Pro">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -50,7 +50,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif; -webkit-tap-highlight-color: transparent; }
 body { background: var(--bg); color: var(--text-main); font-size: 14px; min-height: 100dvh; display: flex; flex-direction: column; overflow-x: hidden; }
 
-/* IN-APP PWA INSTALL BANNER */
+/* IN-APP PWA INSTALL BAR */
 .pwa-install-banner { display: none; background: #1a1a1a; color: #fff; padding: 10px 16px; border-bottom: 1.5px solid var(--gold); align-items: center; justify-content: space-between; z-index: 1000; position: sticky; top: 0; }
 .pwa-install-content { display: flex; align-items: center; gap: 10px; }
 .pwa-install-icon { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--gold); display: flex; align-items: center; justify-content: center; background: #2d2d2d; }
@@ -304,8 +304,8 @@ body.customer-mode { background: var(--cream); }
       <button class="auth-tab" type="button" onclick="switchAuthTab('register')" id="tab-register">Register Cafe</button>
     </div>
     <form id="form-login" onsubmit="handleLogin(event)">
-      <label>Email or Staff Username</label>
-      <input id="log-email" type="text" required placeholder="owner@cafe.com OR rohan" autocomplete="username">
+      <label>Owner Email OR Staff 10-Digit Mobile</label>
+      <input id="log-email" type="text" required placeholder="owner@cafe.com OR 9876543210" autocomplete="username">
       <label>Password</label>
       <input id="log-pass" type="password" required placeholder="••••••••" autocomplete="current-password">
       <button type="submit" class="btn-primary" style="margin-top:6px" id="btn-login-submit">Sign In →</button>
@@ -315,14 +315,14 @@ body.customer-mode { background: var(--cream); }
       <input id="reg-name" required placeholder="e.g. Royal Cafe">
       <label>Owner Name</label>
       <input id="reg-owner" required placeholder="Full Name">
-      <label>Phone Number</label>
-      <input id="reg-phone" required placeholder="+91 XXXXX XXXXX">
+      <label>Phone Number (10 Digits)</label>
+      <input id="reg-phone" type="tel" pattern="[0-9]{10}" maxlength="10" required placeholder="9876543210">
       <label>Email Address</label>
       <input id="reg-email" type="email" required placeholder="owner@cafe.com" autocomplete="email">
       <label>Password (Min 6 chars)</label>
       <input id="reg-pass" type="password" required minlength="6" placeholder="Password" autocomplete="new-password">
       <label>Master PIN (4 Digits)</label>
-      <input id="reg-pin" type="password" pattern="[0-9]{4}" required placeholder="e.g. 1234">
+      <input id="reg-pin" type="password" pattern="[0-9]{4}" maxlength="4" required placeholder="e.g. 1234">
       <button type="submit" class="btn-primary" style="margin-top:6px" id="btn-reg-submit">Register & Launch My Cafe →</button>
     </form>
     <div style="text-align:center;font-size:10.5px;color:#94a3b8;margin-top:14px;">
@@ -491,7 +491,6 @@ function bindCafeCloudListener(cafeId) {
   currentCafeListener = db.collection("cafes").doc(cafeId).onSnapshot((docSnap) => {
     if (docSnap.exists) {
       const serverData = docSnap.data();
-      // টেবিল গায়েব হওয়া রোধ করতে মার্জ করা হচ্ছে
       window.RESTAURANT_DATA = Object.assign({}, window.RESTAURANT_DATA, serverData);
       window.RESTAURANT_DATA.cafeId = cafeId;
       if (!window.RESTAURANT_DATA.tables || !window.RESTAURANT_DATA.tables.length) {
@@ -529,7 +528,7 @@ window.cloudSave = function() {
 };
 
 /* ==========================================================================
-   AUTH FLOW
+   AUTH FLOW (SUPPORTING 10-DIGIT MOBILE NUMBER FOR STAFF)
    ========================================================================== */
 function checkAuth() {
   if (!auth) { setTimeout(checkAuth, 500); return; }
@@ -592,22 +591,18 @@ async function handleLogin(e) {
   const btn = document.getElementById('btn-login-submit');
   btn.disabled = true; btn.innerText = "Signing in...";
 
-  let targetEmail = loginInput.includes('@') ? loginInput : loginInput.replace(/\s+/g, '') + '@tablemaster.com';
+  // যদি ১০ ডিজিটের মোবাইল নম্বর দেওয়া হয়, তা ইউনিক ইমেইলে রূপান্তর হবে
+  let targetEmail = loginInput;
+  if (/^[0-9]{10}$/.test(loginInput)) {
+    targetEmail = `${loginInput}@tablemaster.com`;
+  } else if (!loginInput.includes('@')) {
+    targetEmail = `${loginInput}@tablemaster.com`;
+  }
 
   try {
     await auth.signInWithEmailAndPassword(targetEmail, pass);
   } catch (err) {
-    if (!loginInput.includes('@') && (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found')) {
-      try {
-        const fallbackEmail = loginInput.replace(/\s+/g, '') + '@tablemaster.local';
-        await auth.signInWithEmailAndPassword(fallbackEmail, pass);
-        return;
-      } catch (fallbackErr) {
-        alert(currentLang === 'bn' ? "লগইন ব্যর্থ: ইউজারনেম অথবা পাসওয়ার্ড সঠিক নয়।" : "Login Failed: Invalid credentials.");
-      }
-    } else {
-      alert("Login Failed: " + err.message);
-    }
+    alert(currentLang === 'bn' ? "লগইন ব্যর্থ: মোবাইল নম্বর/ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।" : "Login Failed: Invalid credentials.");
   } finally {
     btn.disabled = false; btn.innerText = "Sign In →";
   }
@@ -624,6 +619,11 @@ async function handleRegister(e) {
   const pass = document.getElementById('reg-pass').value.trim();
   const pin = document.getElementById('reg-pin').value.trim();
   const btn = document.getElementById('btn-reg-submit');
+
+  if (!/^[0-9]{10}$/.test(phone)) {
+    alert("Please enter a valid 10-digit mobile number!");
+    return;
+  }
 
   btn.disabled = true; btn.innerText = "Registering Cafe...";
 
@@ -1736,7 +1736,7 @@ function openBookingSheet(tableId) {
     <label>${t('customerName')}</label>
     <input type="text" id="bk-name" value="${b.name || ''}" placeholder="e.g. Rahul Sen">
     <label>${t('phone')}</label>
-    <input type="text" id="bk-phone" value="${b.phone || ''}" placeholder="e.g. 9876543210">
+    <input type="tel" id="bk-phone" value="${b.phone || ''}" placeholder="e.g. 9876543210">
     <label>${t('bookingTime')}</label>
     <input type="text" id="bk-time" value="${b.time || ''}" placeholder="e.g. 8:30 PM (4 Persons)">
     <button class="btn-primary" onclick="saveTableBooking('${tableId}')">${t('reserve')}</button>
@@ -1946,7 +1946,7 @@ function deleteExpense(id) {
 }
 
 /* ==========================================================================
-   STAFF MANAGEMENT
+   STAFF MANAGEMENT (STRICT 10-DIGIT MOBILE NUMBER REGISTRATION)
    ========================================================================== */
 function openStaffModal() {
   const data = window.getData();
@@ -1956,7 +1956,7 @@ function openStaffModal() {
   const staffListHtml = (data.staff || []).map(s => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;">
       <div>
-        <strong>${s.name}</strong> (@${s.username})
+        <strong>${s.name}</strong> (📞 ${s.phone})
         <div style="font-size:11px;color:var(--text-muted);">${s.role.toUpperCase()}</div>
       </div>
       <button class="btn-danger" style="padding:4px 8px;font-size:11px;" onclick="deleteStaff('${s.id}')">✕</button>
@@ -1973,9 +1973,9 @@ function openStaffModal() {
     <h4 style="font-size:13.5px;margin-bottom:10px;">Add New Staff Member</h4>
     <label>Staff Full Name</label>
     <input type="text" id="stf-name" placeholder="Rohan Kumar">
-    <label>Login Username</label>
-    <input type="text" id="stf-user" placeholder="e.g. rohan">
-    <label>Login Password</label>
+    <label>Staff Mobile Number (10 Digits)</label>
+    <input type="tel" id="stf-phone" pattern="[0-9]{10}" maxlength="10" placeholder="e.g. 9876543210">
+    <label>Login Password (Min 6 chars)</label>
     <input type="text" id="stf-pass" placeholder="pass123">
     <label>${t('role')}</label>
     <select id="stf-role">
@@ -1991,37 +1991,45 @@ function openStaffModal() {
 async function saveStaffMember() {
   const data = window.getData();
   const name = document.getElementById('stf-name').value.trim();
-  const username = document.getElementById('stf-user').value.trim().toLowerCase().replace(/\s+/g, '');
+  const phone = document.getElementById('stf-phone').value.trim();
   const pass = document.getElementById('stf-pass').value.trim();
   const role = document.getElementById('stf-role').value;
   const btn = document.getElementById('btn-save-staff');
 
-  if (!name || !username || !pass) { alert('Please fill in all staff fields'); return; }
-  if (pass.length < 6) { alert('Password must be at least 6 characters'); return; }
+  if (!name || !phone || !pass) { alert('Please fill in all fields!'); return; }
+  if (!/^[0-9]{10}$/.test(phone)) {
+    alert("Mobile number must be exactly 10 digits!");
+    return;
+  }
+  if (pass.length < 6) { alert('Password must be at least 6 characters!'); return; }
 
   btn.disabled = true; btn.innerText = "Creating Account...";
-  const fakeEmail = `${username}@tablemaster.com`;
+  const staffEmail = `${phone}@tablemaster.com`;
 
   try {
     let secondaryApp = null;
     try { secondaryApp = firebase.app("Secondary"); }
     catch(noApp) { secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary"); }
     const secondaryAuth = secondaryApp.auth();
-    const cred = await secondaryAuth.createUserWithEmailAndPassword(fakeEmail, pass);
+    const cred = await secondaryAuth.createUserWithEmailAndPassword(staffEmail, pass);
     const staffUid = cred.user.uid;
     await secondaryApp.delete();
 
     await db.collection("users").doc(staffUid).set({
-      cafeId: data.cafeId, role, name, username
+      cafeId: data.cafeId, role, name, phone
     });
 
     if (!data.staff) data.staff = [];
-    data.staff.push({ id: staffUid, name, username, role });
+    data.staff.push({ id: staffUid, name, phone, role });
     window.cloudSave();
     closeSheet();
-    alert(`Staff account created!\nUsername: ${username}\nPassword: ${pass}`);
+    alert(`Staff account created successfully!\n\nStaff Login Details:\nMobile Number: ${phone}\nPassword: ${pass}`);
   } catch (err) {
-    alert("Error creating staff: " + err.message);
+    if (err.code === 'auth/email-already-in-use') {
+      alert("This mobile number is already registered for another staff account!");
+    } else {
+      alert("Error creating staff: " + err.message);
+    }
   } finally {
     btn.disabled = false; btn.innerText = "Create Staff Account";
   }
@@ -2094,7 +2102,7 @@ function openSettingsSheet() {
       <div><label>${t('serviceRate')}</label><input type="number" id="cfg-service" value="${data.serviceRate || 0}" step="0.01"></div>
     </div>
     <label>Master PIN (4 Digits)</label>
-    <input type="password" id="cfg-pin" pattern="[0-9]{4}" value="${data.masterPin || '1234'}">
+    <input type="password" id="cfg-pin" pattern="[0-9]{4}" maxlength="4" value="${data.masterPin || '1234'}">
     <button class="btn-primary" onclick="saveSettings()">${t('save')}</button>
   `;
   openSheet(t('restaurantSettings'), form);
@@ -2255,7 +2263,7 @@ function showAllTableQRs() {
 }
 
 /* ==========================================================================
-   CUSTOMER SELF-ORDER (REALTIME SYNC & ZERO CONFLICT)
+   CUSTOMER SELF-ORDER
    ========================================================================== */
 window.IS_CUSTOMER_MODE = false;
 let customerCafeId = null;
@@ -2289,7 +2297,6 @@ async function initCustomerMode(urlParams) {
     return;
   }
 
-  // ফায়ারবেস অ্যানোনিমাস লগইন সম্পূর্ণ বাদ দেওয়া হয়েছে যাতে ওনার সেশন লগআউট না হয়
   if (db) {
     customerCafeListener = db.collection("cafes").doc(customerCafeId).onSnapshot((doc) => {
       if (doc.exists) {
@@ -2486,11 +2493,9 @@ async function submitCustomerOrder() {
       });
     }
 
-    // টেবিল স্ট্যাটাস আপডেট কিন্তু টেবিল ডেটা মুছে যাবে না
     const tbl = currentData.tables.find(t => t.id === customerTableId);
     if (tbl) tbl.status = 'occupied';
 
-    // শুধুমাত্র orders ও tables আপডেট করা হচ্ছে যাতে কোনো সেটিংস ডেটা ক্ষতিগ্রস্ত না হয়
     await cafeRef.update({
       orders: currentData.orders,
       tables: currentData.tables
