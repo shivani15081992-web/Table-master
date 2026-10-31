@@ -83,7 +83,7 @@
       <p style="font-size:12px;color:#8b6d38;margin-top:4px;">Connecting to restaurant cloud</p>
     </div>
 
-    <!-- CUSTOMER DETAILS ENTRY GATE (FIRST TIME ONLY) -->
+    <!-- CUSTOMER DETAILS ENTRY GATE -->
     <div id="cust-login-gate" style="display:none;">
       <div class="auth-gate-card">
         <div style="font-size:32px;margin-bottom:8px;">🍽️</div>
@@ -104,7 +104,7 @@
       </div>
     </div>
 
-    <!-- MENU CONTENT (VISIBLE AFTER ENTERING PHONE) -->
+    <!-- MENU CONTENT -->
     <div id="cust-menu-content" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:8px 12px;background:#fff;border-radius:10px;border:1px solid var(--cream-border);">
         <span style="font-size:12px;color:#6b5540;">Dining as: <b id="lbl-active-cust-name" style="color:#1a1a1a;">-</b> (<span id="lbl-active-cust-phone">-</span>)</span>
@@ -149,7 +149,7 @@
 let custCart = [];
 let targetCafeId = null;
 let targetTableId = null;
-let currentCustomer = null; // { name, phone }
+let currentCustomer = null;
 let custSelectedCat = 'All';
 let custSearchQuery = '';
 
@@ -185,7 +185,6 @@ function renderCustomerMenu() {
   document.getElementById('cust-table-badge').innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
   document.getElementById('cust-loading').style.display = 'none';
 
-  // কাস্টমার প্রোফাইল যাচাই
   if (!currentCustomer) {
     const saved = sessionStorage.getItem('tmpro_customer_profile');
     if (saved) {
@@ -197,12 +196,30 @@ function renderCustomerMenu() {
     }
   }
 
-  // বিল সেটেলমেন্ট সুরক্ষা চেক: যদি এই কাস্টমারের বিলটি ক্যাশিয়ার সেটেল করে দিয়ে থাকে
   const allOrders = data.orders || [];
-  const runningOrderForThisPhone = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && o.status !== 'completed');
+  
+  // কাস্টমার যদি অর্ডার পাঠিয়ে থাকে এবং তা রিসেপশনের অনুমোদনের অপেক্ষায় থাকে
+  const pendingApprovalOrder = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && o.status === 'pending_approval');
+  if (pendingApprovalOrder) {
+    document.getElementById('cust-cart-bar').style.display = 'none';
+    document.getElementById('cust-menu-content').style.display = 'none';
+    document.getElementById('cust-menu-area').innerHTML = `
+      <div style="text-align:center;padding:50px 20px;">
+        <div style="font-size:48px;margin-bottom:14px;animation:pulse 1.5s infinite;">⏳</div>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#b45309;margin-bottom:8px;">Order Sent for Verification</h2>
+        <p style="color:#6b5540;font-size:13.5px;max-width:320px;margin:0 auto;line-height:1.5;">
+          Thank you <b>${currentCustomer.name}</b>! The waiter / reception is verifying your table to send your order directly to the kitchen.
+        </p>
+        <div style="font-size:12px;color:#94a3b8;margin-top:14px;">Please wait at your table... 🍽️</div>
+      </div>
+    `;
+    return;
+  }
+
+  // বিল সেটেলমেন্ট স্ক্রিন
+  const runningOrderForThisPhone = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && (o.status === 'preparing' || o.status === 'ready_to_serve' || o.status === 'served'));
   const pastSettledOrderForThisPhone = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && o.status === 'completed');
 
-  // যদি রানিং কোনো বিল না থাকে কিন্তু এই ফোনে আগে খাওয়া হয়ে বিল সেটেল হয়ে গেছে
   if (!runningOrderForThisPhone && pastSettledOrderForThisPhone) {
     document.getElementById('cust-cart-bar').style.display = 'none';
     document.getElementById('cust-menu-content').style.display = 'none';
@@ -213,10 +230,7 @@ function renderCustomerMenu() {
         <p style="color:#6b5540;font-size:13.5px;max-width:320px;margin:0 auto;line-height:1.5;">
           Thank you <b>${currentCustomer.name}</b> for dining with us! Your bill has been completely settled.
         </p>
-        <p style="font-size:12px;color:#94a3b8;margin-top:14px;">
-          (If you are still sitting at this table and want to start a new dining session, please click below)
-        </p>
-        <button class="btn-primary" style="margin-top:10px;max-width:240px;background:#1a1a1a;color:#e8d5a1;" onclick="startFreshSession()">Start New Session →</button>
+        <button class="btn-primary" style="margin-top:18px;max-width:240px;background:#1a1a1a;color:#e8d5a1;" onclick="startFreshSession()">Start New Session →</button>
       </div>
     `;
     return;
@@ -335,7 +349,7 @@ function openCustCartReviewSheet() {
       <span style="color:#8b6d38;">₹ ${grandTotal.toFixed(2)}</span>
     </div>
 
-    <button class="btn-primary" id="btn-cust-place" onclick="submitCustomerOrderToKitchen()">✓ Confirm & Send Order to Kitchen</button>
+    <button class="btn-primary" id="btn-cust-place" onclick="submitCustomerOrderToKitchen()">✓ Send Order for Verification</button>
   `;
   openSheet("Confirm Order", html);
 }
@@ -355,7 +369,7 @@ function changeCustQty(idx, delta) {
 async function submitCustomerOrderToKitchen() {
   if (custCart.length === 0 || !db || !targetCafeId || !currentCustomer) return;
   const btn = document.getElementById('btn-cust-place');
-  if (btn) { btn.disabled = true; btn.innerText = "Placing order..."; }
+  if (btn) { btn.disabled = true; btn.innerText = "Sending Order..."; }
 
   try {
     const cafeRef = db.collection("cafes").doc(targetCafeId);
@@ -371,25 +385,26 @@ async function submitCustomerOrderToKitchen() {
     const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
     const total = subtotal + gst;
 
-    // টেবিলে বর্তমান সেশনে এই কাস্টমারের আনসেটেল্ড কোনো অর্ডার চলছে কিনা যাচাই
     const existingOrder = cData.orders.find(o => o.tableId === targetTableId && o.status !== 'completed');
 
     if (existingOrder) {
-      existingOrder.items.forEach(it => it.isAddOn = false);
-      custCart.forEach(ni => {
-        const m = existingOrder.items.find(i => i.dishId === ni.dishId);
-        if (m) {
-          m.qty += ni.qty;
-          m.isAddOn = true;
+      // Add-on আইটেম যোগ করা (অনুমোদনের অপেক্ষায় থাকবে)
+      custCart.forEach(newItem => {
+        const match = existingOrder.items.find(i => i.dishId === newItem.dishId);
+        if (match) {
+          match.qty += newItem.qty;
+          match.isAddOn = true;
         } else {
-          existingOrder.items.push({ ...ni, isAddOn: true });
+          existingOrder.items.push({ ...newItem, isAddOn: true });
         }
       });
       existingOrder.subtotal = existingOrder.items.reduce((s, i) => s + (i.price * i.qty), 0);
       existingOrder.gst = gstRate > 0 ? (existingOrder.subtotal * (gstRate / 100)) : 0;
       existingOrder.total = existingOrder.subtotal + existingOrder.gst;
-      existingOrder.status = 'preparing';
+      // যদি কিচেনে অলরেডি থাকে, তবুও অ্যাড-অন রিসেপশন ভেরিফাই করবে
+      existingOrder.pendingApproval = true;
     } else {
+      // একদম নতুন অর্ডার — সরাসরি কিচেনে যাবে না, রিসেপশন যাচাই করবে
       const orderNum = 100 + cData.orders.length + 1;
       cData.orders.push({
         id: 'ord_' + Date.now(),
@@ -403,34 +418,24 @@ async function submitCustomerOrderToKitchen() {
         gst,
         gstRate,
         total,
-        status: 'preparing',
+        status: 'pending_approval', // রিসেপশন/ওয়েটার অ্যাকসেপ্টের অপেক্ষায়
         source: 'customer_qr',
         date: window.todayStr(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
     }
 
-    const tbl = cData.tables.find(t => t.id === targetTableId);
-    if (tbl) {
-      tbl.status = 'occupied';
-      tbl.activeCustomerPhone = currentCustomer.phone;
-    }
-
     await cafeRef.update({
-      orders: cData.orders,
-      tables: cData.tables
+      orders: cData.orders
     });
 
     custCart = [];
     closeSheet();
     document.getElementById('cust-cart-bar').style.display = 'none';
-
-    // সাকসেস মেসেজ — কাস্টমার আবার Add More করতে পারবে
-    alert("✓ Order successfully sent to kitchen!");
     renderCustomerMenu();
   } catch (err) {
     alert("Order failed: " + err.message);
-    if (btn) { btn.disabled = false; btn.innerText = "✓ Confirm & Send Order to Kitchen"; }
+    if (btn) { btn.disabled = false; btn.innerText = "✓ Send Order for Verification"; }
   }
 }
 
