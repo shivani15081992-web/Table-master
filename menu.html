@@ -46,16 +46,17 @@
       </div>
     </div>
 
-    <!-- FOOD MENU MANAGEMENT -->
+    <!-- FOOD MENU MANAGEMENT WITH STOCK TOGGLE -->
     <div class="tm-card">
       <div class="tm-card-title">
         <span>Digital Food Menu Card</span>
         <button class="btn-sm-outline" style="background:#eff6ff;color:var(--primary);" onclick="openAddDishModal()">+ Add New Dish</button>
       </div>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Toggle <b>In Stock / Out of Stock</b> to instantly pause finished dishes from QR & Waiter terminals.</p>
       <div id="menu-items-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
 
-    <!-- STAFF ACCOUNTS (10-DIGIT MOBILE NUMBER SYSTEM) -->
+    <!-- STAFF ACCOUNTS -->
     <div class="tm-card">
       <div class="tm-card-title">
         <span>Staff Accounts (10-Digit Mobile Access)</span>
@@ -72,13 +73,9 @@
       <label>Restaurant / Cafe Name</label>
       <input type="text" id="cfg-name" placeholder="Restaurant Name">
 
-      <!-- LOGO UPLOAD (SMART COMPRESSION) -->
       <label>Restaurant Logo (Optional - For Thermal Receipts)</label>
       <input type="file" id="cfg-logo-file" accept="image/*" onchange="handleLogoCompressUpload(event)">
       <div id="logo-preview-box" style="margin-bottom:10px;"></div>
-      <small style="color:var(--text-muted);display:block;margin-top:-6px;margin-bottom:10px;font-size:10.5px;">
-        * Note: If you do not upload any photo, our default Golden Cutlery Logo will be used automatically.
-      </small>
 
       <label>Contact Phone Number</label>
       <input type="text" id="cfg-phone" placeholder="+91 XXXXX XXXXX">
@@ -89,12 +86,8 @@
       <label>UPI ID (For Scan to Pay QR)</label>
       <input type="text" id="cfg-upi" placeholder="merchant@upi">
 
-      <!-- GOOGLE REVIEW URL FOR BILL PRINTING -->
-      <label>Google Review URL (গুগল রিভিউ লিঙ্ক — ফর থার্মাল বিল QR)</label>
+      <label>Google Review URL (For Thermal Receipt QR)</label>
       <input type="url" id="cfg-review" placeholder="https://g.page/r/your-review-link/review">
-      <small style="color:var(--text-muted);display:block;margin-top:-6px;margin-bottom:10px;font-size:10.5px;">
-        * এই লিঙ্ক দিলে থার্মাল রিসিপ্টের নিচে রিভিউ কিউআর কোড স্বয়ংক্রিয়ভাবে প্রিন্ট হবে।
-      </small>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div>
@@ -157,8 +150,7 @@ let activeCafeId = '';
 
 function handleLogout() {
   if (confirm("Log out from Settings Terminal?")) {
-    sessionStorage.removeItem('tmpro_role_mode');
-    sessionStorage.removeItem('tmpro_cafe_id');
+    sessionStorage.clear();
     auth.signOut().then(() => {
       window.location.href = 'index.html';
     });
@@ -170,24 +162,32 @@ function renderMenu() {
   updateHeaderBrand(data);
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  // Render Food Dishes
+  // Render Dishes with Stock Toggle
   const dishes = data.menu || [];
   const menuContainer = document.getElementById('menu-items-list');
   if (dishes.length === 0) {
     menuContainer.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);">No dishes added to menu yet.</div>';
   } else {
-    menuContainer.innerHTML = dishes.map(d => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;">
-        <div>
-          <div style="font-weight:700;font-size:13.5px;">${d.name}</div>
-          <div style="font-size:11px;color:var(--text-muted);">${d.category || 'General'}</div>
+    menuContainer.innerHTML = dishes.map(d => {
+      const isAvailable = d.available !== false; // ডিফল্ট হলো অ্যাভেইলেবল
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid ${isAvailable ? 'var(--border)' : '#fca5a5'};border-radius:10px;background:${isAvailable ? '#fff' : '#fff5f5'};">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-weight:700;font-size:13.5px;color:${isAvailable ? '#0f172a' : '#991b1b'};">${d.name}</span>
+              ${!isAvailable ? '<span style="font-size:9.5px;background:#fee2e2;color:#b91c1c;padding:2px 6px;border-radius:4px;font-weight:800;">OUT OF STOCK</span>' : ''}
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);">${d.category || 'General'} · <b>₹ ${d.price}</b></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick="toggleDishAvailability('${d.id}')" style="border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;background:${isAvailable ? '#ecfdf5' : '#fef2f2'};color:${isAvailable ? '#059669' : '#dc2626'};border:1px solid ${isAvailable ? '#a7f3d0' : '#fecaca'};">
+              ${isAvailable ? '✓ In Stock' : '⏸ Paused'}
+            </button>
+            <button class="btn-danger" style="padding:4px 8px;font-size:11px;" onclick="deleteDish('${d.id}')">✕</button>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-weight:800;color:var(--primary);font-size:14px;">₹ ${d.price}</span>
-          <button class="btn-danger" style="padding:4px 8px;font-size:11px;" onclick="deleteDish('${d.id}')">Delete</button>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   // Render Staff List
@@ -216,7 +216,6 @@ function renderMenu() {
   document.getElementById('cfg-gst').value = data.gstRate || 0;
   document.getElementById('cfg-pin').value = data.masterPin || '1234';
 
-  // Logo Preview
   const previewBox = document.getElementById('logo-preview-box');
   if (data.logo && data.logo.trim() !== '') {
     previewBox.innerHTML = `
@@ -235,9 +234,27 @@ function renderMenu() {
   }
 }
 
-/* ==========================================================================
-   DISH ACTIONS (DIRECT FIRESTORE ATOMIC UPDATE)
-   ========================================================================== */
+// আইটেম স্টক অন / অফ টগল ফাংশন
+async function toggleDishAvailability(id) {
+  if (!activeCafeId || !db) return;
+  try {
+    const cafeRef = db.collection("cafes").doc(activeCafeId);
+    const docSnap = await cafeRef.get();
+    if (!docSnap.exists) return;
+
+    const cData = docSnap.data();
+    const menu = cData.menu || [];
+    const item = menu.find(d => d.id === id);
+    if (item) {
+      item.available = (item.available === false) ? true : false;
+      await cafeRef.update({ menu });
+      renderMenu();
+    }
+  } catch(err) {
+    alert("Error updating availability: " + err.message);
+  }
+}
+
 function openAddDishModal() {
   const form = `
     <label>Dish Name</label>
@@ -279,7 +296,8 @@ async function saveNewDish() {
       id: 'm_' + Date.now(),
       name: name,
       category: category,
-      price: price
+      price: price,
+      available: true
     });
 
     await cafeRef.update({ menu });
@@ -309,9 +327,6 @@ async function deleteDish(id) {
   }
 }
 
-/* ==========================================================================
-   STAFF MANAGEMENT (10-DIGIT MOBILE NUMBER SYSTEM)
-   ========================================================================== */
 function openAddStaffModal() {
   const form = `
     <label>Staff Full Name</label>
@@ -420,9 +435,6 @@ async function deleteStaff(id) {
   }
 }
 
-/* ==========================================================================
-   LOGO UPLOAD & SETTINGS (WITH GOOGLE REVIEW INTEGRATION)
-   ========================================================================== */
 function handleLogoCompressUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -503,9 +515,6 @@ async function saveCafeSettings() {
   }
 }
 
-/* ==========================================================================
-   OFFLINE DATA BACKUP & RESTORE
-   ========================================================================== */
 function downloadFullDataBackup() {
   const data = window.getData();
   if (!data) return;
