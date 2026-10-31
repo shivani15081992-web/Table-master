@@ -135,12 +135,12 @@
   </header>
 
   <main class="main-wrapper">
-    <!-- RECEPTION VERIFICATION BANNER (CUSTOMER QR ORDERS PENDING APPROVAL) -->
+    <!-- RECEPTION VERIFICATION BANNER -->
     <div id="box-pending-approvals" style="display:none;margin-bottom:16px;">
       <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:14px;padding:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <b style="color:#92400e;font-size:13.5px;">🔔 Customer QR Orders Awaiting Verification</b>
-          <span class="badge" style="background:#f59e0b;color:#fff;" id="count-pending-approvals">0</span>
+          <span class="badge" style="background:#f59e0b;color:#fff;" id="count-pending-approvals">0 New</span>
         </div>
         <div id="pending-approvals-list"></div>
       </div>
@@ -169,7 +169,7 @@
         <div class="tile-desc"><span id="val-kot-count">0</span> <span id="tile-kitchen-desc">Orders Preparing</span></div>
       </a>
       <a href="expenses.html" class="quick-tile" style="border-left-color: #ef4444;">
-        <div class="tile-bubble" style="background:#fef2f2;color:#ef4444;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 9V7a2 2 0 01-2-2H5a2 2 0 01-2 2v6a2 2 0 012 2h2m2 4h10a2 2 0 012-2v-6a2 2 0 01-2-2H9a2 2 0 01-2 2v6a2 2 0 012 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg></div>
+        <div class="tile-bubble" style="background:#fef2f2;color:#ef4444;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg></div>
         <div class="tile-title" id="tile-expense-title">Daily Expenses</div>
         <div class="tile-desc" id="tile-expense-desc">Log Daily Costs</div>
       </a>
@@ -243,6 +243,8 @@
 <div id="print-area"></div>
 
 <script>
+let lastKnownPendingCount = -1;
+
 function switchAuthTab(tab) {
   document.getElementById('tab-login').style.background = tab === 'login' ? '#fff' : 'transparent';
   document.getElementById('tab-login').style.color = tab === 'login' ? 'var(--primary)' : 'var(--text-muted)';
@@ -347,11 +349,17 @@ function renderDashboard() {
   updateHeaderBrand(data);
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  // রিসেপশন ভেরিফিকেশন: কাস্টমারের যে অর্ডারগুলো অ্যাপ্রুভালের অপেক্ষায় আছে
+  // রিসেপশন ভেরিফিকেশন: কাস্টমারের যে কিউআর অর্ডারগুলো যাচাইয়ের অপেক্ষায় আছে
   const pendingOrders = (data.orders || []).filter(o => o.status === 'pending_approval' || o.pendingApproval === true);
   const pendingBox = document.getElementById('box-pending-approvals');
   const pendingList = document.getElementById('pending-approvals-list');
   const countBadge = document.getElementById('count-pending-approvals');
+
+  // নতুন কিউআর অর্ডার ঢুকলেই ওনারের ফোনে পিং-পং অ্যালার্ট বেজে উঠবে
+  if (lastKnownPendingCount !== -1 && pendingOrders.length > lastKnownPendingCount) {
+    window.playAlertTone('approval');
+  }
+  lastKnownPendingCount = pendingOrders.length;
 
   if (pendingOrders.length > 0) {
     pendingBox.style.display = 'block';
@@ -363,14 +371,14 @@ function renderDashboard() {
             <b style="font-size:14px;color:#0f172a;">🪑 ${getTableLabel(o.tableId, data)}</b>
             <span style="font-size:12px;color:#1e40af;font-weight:700;display:block;">👤 ${o.custName || 'Customer'} (📞 ${o.custPhone || 'N/A'})</span>
           </div>
-          <span style="font-size:11px;font-weight:800;color:#b45309;">₹ ${(o.total||0).toFixed(2)}</span>
+          <span style="font-size:13px;font-weight:800;color:#059669;">₹ ${(o.total||0).toFixed(2)}</span>
         </div>
         <div style="font-size:12px;color:#334155;margin-bottom:8px;">
           ${(o.items||[]).map(i => `${i.qty}x ${i.name}`).join(', ')}
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;background:#059669;" onclick="acceptCustomerQROrder('${o.id}')">✓ Accept & Send to Kitchen</button>
-          <button class="btn-danger" style="flex:0.4;padding:8px;font-size:12px;" onclick="rejectCustomerQROrder('${o.id}')">✕ Reject</button>
+          <button class="btn-danger" style="flex:0.35;padding:8px;font-size:12px;" onclick="rejectCustomerQROrder('${o.id}')">✕ Reject</button>
         </div>
       </div>
     `).join('');
@@ -439,7 +447,7 @@ function renderDashboard() {
   `).join('');
 }
 
-// কিউআর অর্ডার অ্যাকসেপ্ট করার ফাংশন (সোজা কিচেনে KOT চলে যাবে)
+// ওনার কিউআর অর্ডার অ্যাকসেপ্ট করার ফাংশন
 async function acceptCustomerQROrder(orderId) {
   const activeCafeId = sessionStorage.getItem('tmpro_cafe_id');
   if (!activeCafeId || !db) return;
@@ -455,7 +463,7 @@ async function acceptCustomerQROrder(orderId) {
 
     const o = orders.find(ord => ord.id === orderId);
     if (o) {
-      o.status = 'preparing'; // কিচেন KOT সক্রিয় হলো
+      o.status = 'preparing'; // কিচেনে KOT চলে যাবে
       o.pendingApproval = false;
 
       const tbl = tables.find(t => t.id === o.tableId);
@@ -470,7 +478,7 @@ async function acceptCustomerQROrder(orderId) {
   }
 }
 
-// কিউআর অর্ডার রিজেক্ট করার ফাংশন (ভুয়ো অর্ডার বাতিল)
+// ওনার কিউআর অর্ডার রিজেক্ট করার ফাংশন
 async function rejectCustomerQROrder(orderId) {
   if (!confirm("Are you sure you want to REJECT this customer QR order?")) return;
   const activeCafeId = sessionStorage.getItem('tmpro_cafe_id');
