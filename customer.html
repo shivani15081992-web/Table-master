@@ -117,7 +117,7 @@
     <!-- 4. MENU CONTENT -->
     <div id="cust-menu-content" style="display:none;">
       
-      <!-- LIVE RUNNING ORDER TRACKER BANNER (রিয়েল-টাইম অর্ডার স্ট্যাটাস ব্যানার) -->
+      <!-- LIVE RUNNING ORDER TRACKER BANNER -->
       <div id="cust-live-order-banner" style="display:none;"></div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:8px 12px;background:#fff;border-radius:10px;border:1px solid var(--cream-border);">
@@ -167,15 +167,17 @@ let currentCustomer = null;
 let custSelectedCat = 'All';
 let custSearchQuery = '';
 
-function setDisplay(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = val;
+function safeSetDisplay(id, val) {
+  try {
+    const el = document.getElementById(id);
+    if (el && el.style) el.style.display = val;
+  } catch(e) {}
 }
 
 function handleCustomerGateSubmit(e) {
   e.preventDefault();
-  const name = document.getElementById('gate-cust-name')?.value.trim();
-  const phone = document.getElementById('gate-cust-phone')?.value.trim();
+  const name = document.getElementById('gate-cust-name')?.value?.trim();
+  const phone = document.getElementById('gate-cust-phone')?.value?.trim();
 
   if (!name || !/^[0-9]{10}$/.test(phone)) {
     alert("Please enter a valid Name and 10-digit Mobile Number!");
@@ -184,12 +186,12 @@ function handleCustomerGateSubmit(e) {
 
   currentCustomer = { name, phone };
   sessionStorage.setItem('tmpro_customer_profile', JSON.stringify(currentCustomer));
-  setDisplay('cust-login-gate', 'none');
+  safeSetDisplay('cust-login-gate', 'none');
   renderCustomerMenu();
 }
 
 function renderCustomerMenu() {
-  const data = window.getData();
+  const data = window.getData() || {};
   const tbl = (data.tables || []).find(t => t.id === targetTableId);
 
   const cafeNameEl = document.getElementById('cust-cafe-name');
@@ -207,16 +209,17 @@ function renderCustomerMenu() {
   const tableBadge = document.getElementById('cust-table-badge');
   if (tableBadge) tableBadge.innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
 
-  setDisplay('cust-loading', 'none');
+  safeSetDisplay('cust-loading', 'none');
 
   if (!currentCustomer) {
     const saved = sessionStorage.getItem('tmpro_customer_profile');
     if (saved) {
-      currentCustomer = JSON.parse(saved);
-    } else {
-      setDisplay('cust-login-gate', 'block');
-      setDisplay('cust-menu-content', 'none');
-      setDisplay('cust-status-screen', 'none');
+      try { currentCustomer = JSON.parse(saved); } catch(e){}
+    }
+    if (!currentCustomer) {
+      safeSetDisplay('cust-login-gate', 'block');
+      safeSetDisplay('cust-menu-content', 'none');
+      safeSetDisplay('cust-status-screen', 'none');
       return;
     }
   }
@@ -226,9 +229,9 @@ function renderCustomerMenu() {
   // ১. অর্ডার রিসেপশনের অনুমোদনের অপেক্ষায় আছে
   const pendingApprovalOrder = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && o.status === 'pending_approval');
   if (pendingApprovalOrder) {
-    setDisplay('cust-cart-bar', 'none');
-    setDisplay('cust-menu-content', 'none');
-    setDisplay('cust-login-gate', 'none');
+    safeSetDisplay('cust-cart-bar', 'none');
+    safeSetDisplay('cust-menu-content', 'none');
+    safeSetDisplay('cust-login-gate', 'none');
     
     const statusScreen = document.getElementById('cust-status-screen');
     if (statusScreen) {
@@ -250,9 +253,9 @@ function renderCustomerMenu() {
   const pastSettledOrderForThisPhone = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && o.status === 'completed');
 
   if (!runningOrderForThisPhone && pastSettledOrderForThisPhone) {
-    setDisplay('cust-cart-bar', 'none');
-    setDisplay('cust-menu-content', 'none');
-    setDisplay('cust-login-gate', 'none');
+    safeSetDisplay('cust-cart-bar', 'none');
+    safeSetDisplay('cust-menu-content', 'none');
+    safeSetDisplay('cust-login-gate', 'none');
 
     const statusScreen = document.getElementById('cust-status-screen');
     if (statusScreen) {
@@ -270,9 +273,9 @@ function renderCustomerMenu() {
   }
 
   // ৩. রিয়েল-টাইম কিচেন ও অ্যাকসেপ্ট স্ট্যাটাস ব্যানার
-  setDisplay('cust-status-screen', 'none');
-  setDisplay('cust-login-gate', 'none');
-  setDisplay('cust-menu-content', 'block');
+  safeSetDisplay('cust-status-screen', 'none');
+  safeSetDisplay('cust-login-gate', 'none');
+  safeSetDisplay('cust-menu-content', 'block');
 
   const liveBanner = document.getElementById('cust-live-order-banner');
   if (liveBanner) {
@@ -409,14 +412,14 @@ function updateCustCartBar() {
 }
 
 function openCustCartReviewSheet() {
-  const data = window.getData();
+  const data = window.getData() || {};
   const subtotal = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
   const gstRate = parseFloat(data.gstRate) || 0;
   const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
   const grandTotal = subtotal + gst;
 
   const html = `
-    <div style="font-family:'Cormorant Garamond',serif;font-weight:700;margin-bottom:12px;font-size:18px;color:#1a1a1a;">Order for ${currentCustomer.name} (${currentCustomer.phone})</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-weight:700;margin-bottom:12px;font-size:18px;color:#1a1a1a;">Order for ${currentCustomer?.name || 'Guest'} (${currentCustomer?.phone || ''})</div>
     ${custCart.map((it, idx) => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--cream-border);">
         <div style="flex:1;">
@@ -520,12 +523,14 @@ async function submitCustomerOrderToKitchen() {
     });
 
     custCart = [];
-    closeSheet();
-    setDisplay('cust-cart-bar', 'none');
+    try { closeSheet(); } catch(e){}
+    safeSetDisplay('cust-cart-bar', 'none');
     renderCustomerMenu();
   } catch (err) {
+    console.error("Order error:", err);
     alert("Order failed: " + err.message);
-    if (btn) { btn.disabled = false; btn.innerText = "✓ Send Order for Verification"; }
+    const btnRetry = document.getElementById('btn-cust-place');
+    if (btnRetry) { btnRetry.disabled = false; btnRetry.innerText = "✓ Send Order for Verification"; }
   }
 }
 
