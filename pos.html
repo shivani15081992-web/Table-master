@@ -67,7 +67,7 @@
       <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:12px;padding:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="color:#92400e;font-size:13px;">🔔 Customer QR Orders Awaiting Verification</b>
-          <span class="badge" style="background:#f59e0b;color:#fff;" id="count-waiter-approvals">0</span>
+          <span class="badge" style="background:#f59e0b;color:#fff;" id="count-waiter-approvals">0 New</span>
         </div>
         <div id="waiter-approvals-list"></div>
       </div>
@@ -133,6 +133,7 @@ let posCategory = 'All';
 let posSearch = '';
 let activeCafeId = '';
 let lastReadyServeCount = -1;
+let lastKnownWaiterPendingCount = -1;
 
 function handleLogout() {
   const role = sessionStorage.getItem('tmpro_role_mode') || 'owner';
@@ -179,11 +180,17 @@ function renderPOS() {
   setupRoleNavigation();
   document.getElementById('lbl-lang').innerText = currentLang === 'en' ? 'English' : 'বাংলা';
 
-  // 1. কাস্টমারের যে কিউআর অর্ডারগুলো অনুমোদনের অপেক্ষায় আছে (Accept / Reject)
+  // 1. কাস্টমারের যে কিউআর অর্ডারগুলো যাচাইয়ের অপেক্ষায় আছে (Accept / Reject)
   const pendingApprovals = (data.orders || []).filter(o => o.status === 'pending_approval' || o.pendingApproval === true);
   const appBox = document.getElementById('box-waiter-approvals');
   const appList = document.getElementById('waiter-approvals-list');
   const appCount = document.getElementById('count-waiter-approvals');
+
+  // নতুন কিউআর অর্ডার ঢুকলেই ওয়েটারের ফোনে পিং-পং অ্যালার্ট বেজে উঠবে
+  if (lastKnownWaiterPendingCount !== -1 && pendingApprovals.length > lastKnownWaiterPendingCount) {
+    window.playAlertTone('approval');
+  }
+  lastKnownWaiterPendingCount = pendingApprovals.length;
 
   if (pendingApprovals.length > 0) {
     appBox.style.display = 'block';
@@ -210,7 +217,7 @@ function renderPOS() {
     appBox.style.display = 'none';
   }
 
-  // 2. কিচেন থেকে রেডি হওয়া খাবার
+  // 2. কিচেন থেকে খাবার তৈরি হওয়ার অ্যালার্ট
   const readyOrders = (data.orders || []).filter(o => o.status === 'ready_to_serve');
   const readyBanner = document.getElementById('box-ready-serving');
   const readyList = document.getElementById('ready-orders-list');
@@ -288,7 +295,7 @@ function renderPOS() {
   }
 }
 
-// ওয়েটার কিউআর অর্ডার অ্যাকসেপ্ট করার ফাংশন
+// ওয়েটার কিউআর অর্ডার ভেরিফাই করে কিচেনে পাঠানোর ফাংশন
 async function waiterAcceptQROrder(orderId) {
   if (!activeCafeId || !db) return;
   try {
@@ -302,7 +309,7 @@ async function waiterAcceptQROrder(orderId) {
 
     const o = orders.find(ord => ord.id === orderId);
     if (o) {
-      o.status = 'preparing'; // কিচেনে চলে গেল
+      o.status = 'preparing'; // কিচেন KOT সক্রিয় হলো
       o.pendingApproval = false;
 
       const tbl = tables.find(t => t.id === o.tableId);
