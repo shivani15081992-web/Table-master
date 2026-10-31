@@ -191,6 +191,7 @@ function renderBills() {
   }).join('');
 }
 
+// বিল সেটেলমেন্ট এবং ডায়নামিক সেশন টোকেন এক্সপায়ারি ফাংশন
 async function settleBill(orderId) {
   if (!activeCafeId || !db) return;
   const data = window.getData();
@@ -214,6 +215,8 @@ async function settleBill(orderId) {
     if (targetTbl) {
       targetTbl.status = 'available';
       targetTbl.booking = null;
+      // বিল সেটেল করামাত্র টেবিলের সেশন টোকেন বদলে দেওয়া হবে, ফলে পুরনো কাস্টমারের লিঙ্ক বাতিল হয়ে যাবে
+      targetTbl.sessionToken = 'sess_' + Date.now();
     }
 
     await cafeRef.update({ orders, tables });
@@ -283,7 +286,10 @@ async function editItemQty(orderId, idx, delta) {
       if (confirm("All items removed. Cancel entire bill?")) {
         orders = orders.filter(ord => ord.id !== orderId);
         const tbl = tables.find(t => t.id === o.tableId);
-        if (tbl) tbl.status = 'available';
+        if (tbl) {
+          tbl.status = 'available';
+          tbl.sessionToken = 'sess_' + Date.now();
+        }
         await cafeRef.update({ orders, tables });
         closeSheet(); renderBills();
         return;
@@ -317,7 +323,10 @@ async function removeItem(orderId, idx) {
     if (o.items.length === 0) {
       orders = orders.filter(ord => ord.id !== orderId);
       const tbl = tables.find(t => t.id === o.tableId);
-      if (tbl) tbl.status = 'available';
+      if (tbl) {
+        tbl.status = 'available';
+        tbl.sessionToken = 'sess_' + Date.now();
+      }
       await cafeRef.update({ orders, tables });
       closeSheet(); renderBills();
       return;
@@ -392,7 +401,6 @@ function showReceiptSheet(orderId) {
       ` : ''}
 
       <hr>
-      <!-- DEVELOPER BRANDING -->
       <div class="receipt-dev">
         Software Developed by: Debapriya Sarkar<br>
         Contact: 9046356631
@@ -422,7 +430,6 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // ব্যবহারকারীর রোল যাচাই
       const userDoc = await db.collection("users").doc(user.uid).get();
       if (userDoc.exists) {
         const uRole = userDoc.data().role;
@@ -435,7 +442,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // ওনার হিসেবে কনফার্মেশন
       activeCafeId = 'cafe_' + user.uid;
       sessionStorage.setItem('tmpro_cafe_id', activeCafeId);
       sessionStorage.setItem('tmpro_role_mode', 'owner');
