@@ -66,7 +66,7 @@
   <!-- MAIN CUSTOMER MENU AREA -->
   <main class="customer-main" id="cust-menu-area" style="padding:14px;padding-bottom:110px;max-width:800px;margin:0 auto;">
     
-    <!-- LOADING SPINNER (NOW 100% ENGLISH) -->
+    <!-- LOADING SPINNER -->
     <div class="customer-loading-wrap" id="cust-loading" style="text-align:center;padding:50px 20px;">
       <div class="customer-loading-spinner" style="width:40px;height:40px;margin:0 auto 14px;border:3px solid #ebe3d2;border-top-color:#c9a961;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#6b5540;font-weight:700;">Loading Food Menu...</div>
@@ -114,12 +114,47 @@
 let custCart = [];
 let targetCafeId = null;
 let targetTableId = null;
+let boundSessionToken = null;
 let custSelectedCat = 'All';
 let custSearchQuery = '';
 
 function renderCustomerMenu() {
   const data = window.getData();
-  
+  const tbl = (data.tables || []).find(t => t.id === targetTableId);
+
+  // সেশন ভ্যালিডেশন: টেবিলের কারেন্ট সেশন টোকেন ও কাস্টমারের টোকেন মিলছে কিনা যাচাই
+  if (tbl) {
+    if (!tbl.sessionToken) {
+      tbl.sessionToken = 'sess_' + Date.now();
+    }
+    
+    // প্রথমবারের জন্য সেশন টোকেন লোকাল স্টোরেজে বাইন্ড করা
+    if (!boundSessionToken) {
+      const stored = localStorage.getItem('tmpro_cust_sess_' + targetTableId);
+      if (stored) {
+        boundSessionToken = stored;
+      } else {
+        boundSessionToken = tbl.sessionToken;
+        localStorage.setItem('tmpro_cust_sess_' + targetTableId, boundSessionToken);
+      }
+    }
+
+    // যদি বিল সেটেল হওয়ার কারণে টেবিলের সেশন টোকেন বদলে গিয়ে থাকে (বাড়ি চলে যাওয়া কাস্টমার)
+    if (boundSessionToken !== tbl.sessionToken) {
+      document.getElementById('cust-cart-bar').style.display = 'none';
+      document.getElementById('cust-menu-area').innerHTML = `
+        <div style="text-align:center;padding:60px 20px;">
+          <div style="font-size:54px;margin-bottom:14px;">🔒</div>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#991b1b;margin-bottom:8px;">Dining Session Expired</h2>
+          <p style="color:#6b5540;font-size:13.5px;max-width:320px;margin:0 auto;line-height:1.5;">
+            The bill for this table has been settled. If you are sitting at this table, please re-scan the table QR code to start a fresh order.
+          </p>
+        </div>
+      `;
+      return;
+    }
+  }
+
   document.getElementById('cust-cafe-name').innerText = data.name || 'TableMaster Restaurant';
 
   const logoWrap = document.getElementById('customer-logo-wrap');
@@ -129,7 +164,6 @@ function renderCustomerMenu() {
     logoWrap.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Default Logo">`;
   }
 
-  const tbl = (data.tables || []).find(t => t.id === targetTableId);
   document.getElementById('cust-table-badge').innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
 
   document.getElementById('cust-loading').style.display = 'none';
@@ -178,7 +212,7 @@ function renderCustomerMenu() {
 function addToCustCart(dishId) {
   const data = window.getData();
   const dish = (data.menu || []).find(d => d.id === dishId);
-  if (!dish || dish.available === false) return; // স্টক আউট হলে যোগ হবে না
+  if (!dish || dish.available === false) return;
 
   const match = custCart.find(i => i.dishId === dishId);
   if (match) {
@@ -267,6 +301,15 @@ async function submitCustomerOrderToKitchen() {
     if (!cData.orders) cData.orders = [];
     if (!cData.tables) cData.tables = [];
 
+    const tbl = cData.tables.find(t => t.id === targetTableId);
+    
+    // অর্ডার সাবমিট করার সময় লাইভ সেশন টোকেন ম্যাচিং ভেরিফিকেশন
+    if (tbl && tbl.sessionToken && boundSessionToken && tbl.sessionToken !== boundSessionToken) {
+      alert("This dining session has already been settled! Order cannot be placed.");
+      location.reload();
+      return;
+    }
+
     const subtotal = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
     const gstRate = parseFloat(cData.gstRate) || 0;
     const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
@@ -307,7 +350,6 @@ async function submitCustomerOrderToKitchen() {
       });
     }
 
-    const tbl = cData.tables.find(t => t.id === targetTableId);
     if (tbl) tbl.status = 'occupied';
 
     await cafeRef.update({
