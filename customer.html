@@ -41,6 +41,12 @@
   font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
   color: #e8d5a1; font-weight: 700; margin-top: 6px;
 }
+.dish-paused {
+  opacity: 0.6;
+  filter: grayscale(80%);
+  background: #fdf2f2 !important;
+  border-color: #fca5a5 !important;
+}
 </style>
 </head>
 <body class="customer-mode" style="background:var(--cream);">
@@ -60,10 +66,11 @@
   <!-- MAIN CUSTOMER MENU AREA -->
   <main class="customer-main" id="cust-menu-area" style="padding:14px;padding-bottom:110px;max-width:800px;margin:0 auto;">
     
-    <!-- LOADING SPINNER -->
+    <!-- LOADING SPINNER (NOW 100% ENGLISH) -->
     <div class="customer-loading-wrap" id="cust-loading" style="text-align:center;padding:50px 20px;">
       <div class="customer-loading-spinner" style="width:40px;height:40px;margin:0 auto 14px;border:3px solid #ebe3d2;border-top-color:#c9a961;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:#6b5540;font-weight:600;">খাবার মেনু লোড হচ্ছে...</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#6b5540;font-weight:700;">Loading Food Menu...</div>
+      <p style="font-size:12px;color:#8b6d38;margin-top:4px;">Connecting to restaurant cloud</p>
     </div>
 
     <!-- MENU CONTENT -->
@@ -143,16 +150,26 @@ function renderCustomerMenu() {
   if (dishes.length === 0) {
     grid.innerHTML = '<div style="text-align:center;padding:30px;color:#8b6d38;font-family:\'Cormorant Garamond\',serif;font-size:18px;">No matching food items found.</div>';
   } else {
-    grid.innerHTML = dishes.map(d => `
-      <div class="customer-dish-card" onclick="addToCustCart('${d.id}')">
-        <div class="cdc-category">${d.category || 'General'}</div>
-        <div class="cdc-name">${d.name}</div>
-        <div class="cdc-footer">
-          <div class="cdc-price">₹ ${d.price}</div>
-          <button class="cdc-add-btn" onclick="event.stopPropagation(); addToCustCart('${d.id}')">+</button>
+    grid.innerHTML = dishes.map(d => {
+      const isAvailable = d.available !== false;
+      return `
+        <div class="customer-dish-card ${!isAvailable ? 'dish-paused' : ''}" ${isAvailable ? `onclick="addToCustCart('${d.id}')"` : ''}>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="cdc-category">${d.category || 'General'}</div>
+            ${!isAvailable ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:100px;font-weight:800;">OUT OF STOCK</span>' : ''}
+          </div>
+          <div class="cdc-name" style="${!isAvailable ? 'text-decoration:line-through;color:#991b1b;' : ''}">${d.name}</div>
+          <div class="cdc-footer">
+            <div class="cdc-price">₹ ${d.price}</div>
+            ${isAvailable ? `
+              <button class="cdc-add-btn" onclick="event.stopPropagation(); addToCustCart('${d.id}')">+</button>
+            ` : `
+              <button style="border:none;background:#e2e8f0;color:#94a3b8;font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;cursor:not-allowed;" disabled>Unavailable</button>
+            `}
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   updateCustCartBar();
@@ -161,7 +178,8 @@ function renderCustomerMenu() {
 function addToCustCart(dishId) {
   const data = window.getData();
   const dish = (data.menu || []).find(d => d.id === dishId);
-  if (!dish) return;
+  if (!dish || dish.available === false) return; // স্টক আউট হলে যোগ হবে না
+
   const match = custCart.find(i => i.dishId === dishId);
   if (match) {
     match.qty += 1;
