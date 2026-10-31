@@ -114,7 +114,7 @@
 let custCart = [];
 let targetCafeId = null;
 let targetTableId = null;
-let boundSessionToken = null;
+let activePlacedOrderId = null; // বর্তমান চলমান সেশনের অর্ডার আইডি
 let custSelectedCat = 'All';
 let custSearchQuery = '';
 
@@ -122,32 +122,18 @@ function renderCustomerMenu() {
   const data = window.getData();
   const tbl = (data.tables || []).find(t => t.id === targetTableId);
 
-  // সেশন ভ্যালিডেশন: টেবিলের কারেন্ট সেশন টোকেন ও কাস্টমারের টোকেন মিলছে কিনা যাচাই
-  if (tbl) {
-    if (!tbl.sessionToken) {
-      tbl.sessionToken = 'sess_' + Date.now();
-    }
-    
-    // প্রথমবারের জন্য সেশন টোকেন লোকাল স্টোরেজে বাইন্ড করা
-    if (!boundSessionToken) {
-      const stored = localStorage.getItem('tmpro_cust_sess_' + targetTableId);
-      if (stored) {
-        boundSessionToken = stored;
-      } else {
-        boundSessionToken = tbl.sessionToken;
-        localStorage.setItem('tmpro_cust_sess_' + targetTableId, boundSessionToken);
-      }
-    }
-
-    // যদি বিল সেটেল হওয়ার কারণে টেবিলের সেশন টোকেন বদলে গিয়ে থাকে (বাড়ি চলে যাওয়া কাস্টমার)
-    if (boundSessionToken !== tbl.sessionToken) {
+  // সেশন সেফটি চেক: যদি কাস্টমার আগেই একটি অর্ডার দিয়ে থাকে এবং ক্যাশিয়ার সেই অর্ডারটি সেটেল করে দেয়
+  if (activePlacedOrderId) {
+    const existingOrder = (data.orders || []).find(o => o.id === activePlacedOrderId);
+    if (existingOrder && existingOrder.status === 'completed') {
+      // বিল সেটেল হয়ে গেছে — বাড়ি যাওয়া কাস্টমারের পুরোনো পেজ ফ্রিজ হয়ে যাবে
       document.getElementById('cust-cart-bar').style.display = 'none';
       document.getElementById('cust-menu-area').innerHTML = `
         <div style="text-align:center;padding:60px 20px;">
-          <div style="font-size:54px;margin-bottom:14px;">🔒</div>
-          <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#991b1b;margin-bottom:8px;">Dining Session Expired</h2>
+          <div style="width:70px;height:70px;background:#ecfdf5;color:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 16px;border:2px solid #a7f3d0;">✓</div>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#065f46;margin-bottom:8px;">Bill Settled Successfully!</h2>
           <p style="color:#6b5540;font-size:13.5px;max-width:320px;margin:0 auto;line-height:1.5;">
-            The bill for this table has been settled. If you are sitting at this table, please re-scan the table QR code to start a fresh order.
+            Thank you for dining with us! If you are still at the table and want to order more food, please <b>re-scan the table QR code</b> with your camera.
           </p>
         </div>
       `;
@@ -301,22 +287,16 @@ async function submitCustomerOrderToKitchen() {
     if (!cData.orders) cData.orders = [];
     if (!cData.tables) cData.tables = [];
 
-    const tbl = cData.tables.find(t => t.id === targetTableId);
-    
-    // অর্ডার সাবমিট করার সময় লাইভ সেশন টোকেন ম্যাচিং ভেরিফিকেশন
-    if (tbl && tbl.sessionToken && boundSessionToken && tbl.sessionToken !== boundSessionToken) {
-      alert("This dining session has already been settled! Order cannot be placed.");
-      location.reload();
-      return;
-    }
-
     const subtotal = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
     const gstRate = parseFloat(cData.gstRate) || 0;
     const gst = gstRate > 0 ? (subtotal * (gstRate / 100)) : 0;
     const total = subtotal + gst;
 
+    // টেবিলে বর্তমানে আনসেটেল্ড কোনো অর্ডার চলছে কিনা যাচাই
     const existingOrder = cData.orders.find(o => o.tableId === targetTableId && o.status !== 'completed');
+
     if (existingOrder) {
+      // টেবিলে আগের অর্ডার রানিং থাকলে সরাসরি Add-On হিসেবে কিচেনে যুক্ত হবে
       existingOrder.items.forEach(it => it.isAddOn = false);
       custCart.forEach(ni => {
         const m = existingOrder.items.find(i => i.dishId === ni.dishId);
@@ -330,11 +310,14 @@ async function submitCustomerOrderToKitchen() {
       existingOrder.subtotal = existingOrder.items.reduce((s, i) => s + (i.price * i.qty), 0);
       existingOrder.gst = gstRate > 0 ? (existingOrder.subtotal * (gstRate / 100)) : 0;
       existingOrder.total = existingOrder.subtotal + existingOrder.gst;
-      existingOrder.status = 'preparing';
+      existingOrder.status = 'preparing'; // কিচেনে নতুন আইটেম রান্নার নোটিফিকেশন যাবে
+      activePlacedOrderId = existingOrder.id;
     } else {
+      // একদম নতুন অর্ডার তৈরি হচ্ছে
+      const newOrderId = 'ord_' + Date.now();
       const orderNum = 100 + cData.orders.length + 1;
       cData.orders.push({
-        id: 'ord_' + Date.now(),
+        id: newOrderId,
         kotNo: orderNum,
         billNo: orderNum,
         tableId: targetTableId || 't1',
@@ -348,8 +331,10 @@ async function submitCustomerOrderToKitchen() {
         date: window.todayStr(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
+      activePlacedOrderId = newOrderId;
     }
 
+    const tbl = cData.tables.find(t => t.id === targetTableId);
     if (tbl) tbl.status = 'occupied';
 
     await cafeRef.update({
@@ -360,12 +345,14 @@ async function submitCustomerOrderToKitchen() {
     custCart = [];
     closeSheet();
     document.getElementById('cust-cart-bar').style.display = 'none';
+
+    // সফল অর্ডার কনফার্মেশন ব্যানার
     document.getElementById('cust-menu-area').innerHTML = `
-      <div style="text-align:center;padding:60px 20px;">
+      <div style="text-align:center;padding:50px 16px;">
         <div style="width:70px;height:70px;background:#10b981;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 18px;">✓</div>
-        <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#1a1a1a;margin-bottom:6px;">Order Dispatched to Kitchen!</h2>
-        <p style="color:#6b5540;font-size:13.5px;">Your food is being prepared. Thank you for dining with us! 🍽️</p>
-        <button class="btn-primary" style="margin-top:24px;max-width:240px;" onclick="location.reload()">Order More Items</button>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#1a1a1a;margin-bottom:6px;">Order Sent to Kitchen!</h2>
+        <p style="color:#6b5540;font-size:13.5px;">Your delicious food is being prepared. 🍽️</p>
+        <button class="btn-primary" style="margin-top:24px;max-width:240px;" onclick="renderCustomerMenu()">+ Add More Dishes</button>
       </div>
     `;
   } catch (err) {
@@ -401,6 +388,13 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (doc.exists) {
         window.RESTAURANT_DATA = doc.data();
         window.RESTAURANT_DATA.cafeId = targetCafeId;
+
+        // টেবিলে কোনো সক্রিয় অর্ডার চলছে কি না তা স্বয়ংক্রিয়ভাবে ডিটেক্ট করা
+        const activeOrd = (window.RESTAURANT_DATA.orders || []).find(o => o.tableId === targetTableId && o.status !== 'completed');
+        if (activeOrd) {
+          activePlacedOrderId = activeOrd.id;
+        }
+
         renderCustomerMenu();
       } else {
         document.getElementById('cust-loading').innerHTML = '<div style="color:#dc2626;font-weight:700;">Restaurant not found!</div>';
