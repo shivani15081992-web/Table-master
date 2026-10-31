@@ -41,6 +41,13 @@
   font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
   color: #e8d5a1; font-weight: 700; margin-top: 6px;
 }
+.live-status-card {
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  text-align: left;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
 .dish-paused {
   opacity: 0.6;
   filter: grayscale(80%);
@@ -76,14 +83,14 @@
   <!-- MAIN CUSTOMER MENU AREA -->
   <main class="customer-main" id="cust-menu-area" style="padding:14px;padding-bottom:110px;max-width:800px;margin:0 auto;">
     
-    <!-- LOADING SPINNER -->
+    <!-- 1. LOADING SPINNER -->
     <div class="customer-loading-wrap" id="cust-loading" style="text-align:center;padding:50px 20px;">
       <div class="customer-loading-spinner" style="width:40px;height:40px;margin:0 auto 14px;border:3px solid #ebe3d2;border-top-color:#c9a961;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:#6b5540;font-weight:700;">Loading Food Menu...</div>
       <p style="font-size:12px;color:#8b6d38;margin-top:4px;">Connecting to restaurant cloud</p>
     </div>
 
-    <!-- CUSTOMER DETAILS ENTRY GATE -->
+    <!-- 2. CUSTOMER DETAILS ENTRY GATE -->
     <div id="cust-login-gate" style="display:none;">
       <div class="auth-gate-card">
         <div style="font-size:32px;margin-bottom:8px;">🍽️</div>
@@ -104,8 +111,15 @@
       </div>
     </div>
 
-    <!-- MENU CONTENT -->
+    <!-- 3. VERIFICATION / STATUS MESSAGE CARD -->
+    <div id="cust-status-screen" style="display:none;text-align:center;padding:40px 16px;"></div>
+
+    <!-- 4. MENU CONTENT -->
     <div id="cust-menu-content" style="display:none;">
+      
+      <!-- LIVE RUNNING ORDER TRACKER BANNER (রিয়েল-টাইম অর্ডার স্ট্যাটাস ব্যানার) -->
+      <div id="cust-live-order-banner" style="display:none;"></div>
+
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:8px 12px;background:#fff;border-radius:10px;border:1px solid var(--cream-border);">
         <span style="font-size:12px;color:#6b5540;">Dining as: <b id="lbl-active-cust-name" style="color:#1a1a1a;">-</b> (<span id="lbl-active-cust-phone">-</span>)</span>
       </div>
@@ -153,10 +167,15 @@ let currentCustomer = null;
 let custSelectedCat = 'All';
 let custSearchQuery = '';
 
+function setDisplay(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = val;
+}
+
 function handleCustomerGateSubmit(e) {
   e.preventDefault();
-  const name = document.getElementById('gate-cust-name').value.trim();
-  const phone = document.getElementById('gate-cust-phone').value.trim();
+  const name = document.getElementById('gate-cust-name')?.value.trim();
+  const phone = document.getElementById('gate-cust-phone')?.value.trim();
 
   if (!name || !/^[0-9]{10}$/.test(phone)) {
     alert("Please enter a valid Name and 10-digit Mobile Number!");
@@ -165,7 +184,7 @@ function handleCustomerGateSubmit(e) {
 
   currentCustomer = { name, phone };
   sessionStorage.setItem('tmpro_customer_profile', JSON.stringify(currentCustomer));
-  document.getElementById('cust-login-gate').style.display = 'none';
+  setDisplay('cust-login-gate', 'none');
   renderCustomerMenu();
 }
 
@@ -173,79 +192,147 @@ function renderCustomerMenu() {
   const data = window.getData();
   const tbl = (data.tables || []).find(t => t.id === targetTableId);
 
-  document.getElementById('cust-cafe-name').innerText = data.name || 'TableMaster Restaurant';
+  const cafeNameEl = document.getElementById('cust-cafe-name');
+  if (cafeNameEl) cafeNameEl.innerText = data.name || 'TableMaster Restaurant';
 
   const logoWrap = document.getElementById('customer-logo-wrap');
-  if (data.logo && data.logo.trim() !== '') {
-    logoWrap.innerHTML = `<img src="${data.logo}" style="width:100%;height:100%;object-fit:cover;" alt="Logo">`;
-  } else {
-    logoWrap.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Default Logo">`;
+  if (logoWrap) {
+    if (data.logo && data.logo.trim() !== '') {
+      logoWrap.innerHTML = `<img src="${data.logo}" style="width:100%;height:100%;object-fit:cover;" alt="Logo">`;
+    } else {
+      logoWrap.innerHTML = `<img src="${DEFAULT_GOLD_SVG_LOGO}" style="width:100%;height:100%;object-fit:cover;" alt="Default Logo">`;
+    }
   }
 
-  document.getElementById('cust-table-badge').innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
-  document.getElementById('cust-loading').style.display = 'none';
+  const tableBadge = document.getElementById('cust-table-badge');
+  if (tableBadge) tableBadge.innerText = tbl ? `${tbl.name} · Table Order` : 'Welcome';
+
+  setDisplay('cust-loading', 'none');
 
   if (!currentCustomer) {
     const saved = sessionStorage.getItem('tmpro_customer_profile');
     if (saved) {
       currentCustomer = JSON.parse(saved);
     } else {
-      document.getElementById('cust-login-gate').style.display = 'block';
-      document.getElementById('cust-menu-content').style.display = 'none';
+      setDisplay('cust-login-gate', 'block');
+      setDisplay('cust-menu-content', 'none');
+      setDisplay('cust-status-screen', 'none');
       return;
     }
   }
 
   const allOrders = data.orders || [];
   
-  // কাস্টমার যদি অর্ডার পাঠিয়ে থাকে এবং তা রিসেপশনের অনুমোদনের অপেক্ষায় থাকে
+  // ১. অর্ডার রিসেপশনের অনুমোদনের অপেক্ষায় আছে
   const pendingApprovalOrder = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && o.status === 'pending_approval');
   if (pendingApprovalOrder) {
-    document.getElementById('cust-cart-bar').style.display = 'none';
-    document.getElementById('cust-menu-content').style.display = 'none';
-    document.getElementById('cust-menu-area').innerHTML = `
-      <div style="text-align:center;padding:50px 20px;">
+    setDisplay('cust-cart-bar', 'none');
+    setDisplay('cust-menu-content', 'none');
+    setDisplay('cust-login-gate', 'none');
+    
+    const statusScreen = document.getElementById('cust-status-screen');
+    if (statusScreen) {
+      statusScreen.style.display = 'block';
+      statusScreen.innerHTML = `
         <div style="font-size:48px;margin-bottom:14px;animation:pulse 1.5s infinite;">⏳</div>
         <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#b45309;margin-bottom:8px;">Order Sent for Verification</h2>
         <p style="color:#6b5540;font-size:13.5px;max-width:320px;margin:0 auto;line-height:1.5;">
           Thank you <b>${currentCustomer.name}</b>! The waiter / reception is verifying your table to send your order directly to the kitchen.
         </p>
         <div style="font-size:12px;color:#94a3b8;margin-top:14px;">Please wait at your table... 🍽️</div>
-      </div>
-    `;
+      `;
+    }
     return;
   }
 
-  // বিল সেটেলমেন্ট স্ক্রিন
+  // ২. বিল সেটেল হয়ে গেছে
   const runningOrderForThisPhone = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && (o.status === 'preparing' || o.status === 'ready_to_serve' || o.status === 'served'));
   const pastSettledOrderForThisPhone = allOrders.find(o => o.tableId === targetTableId && o.custPhone === currentCustomer.phone && o.status === 'completed');
 
   if (!runningOrderForThisPhone && pastSettledOrderForThisPhone) {
-    document.getElementById('cust-cart-bar').style.display = 'none';
-    document.getElementById('cust-menu-content').style.display = 'none';
-    document.getElementById('cust-menu-area').innerHTML = `
-      <div style="text-align:center;padding:50px 20px;">
+    setDisplay('cust-cart-bar', 'none');
+    setDisplay('cust-menu-content', 'none');
+    setDisplay('cust-login-gate', 'none');
+
+    const statusScreen = document.getElementById('cust-status-screen');
+    if (statusScreen) {
+      statusScreen.style.display = 'block';
+      statusScreen.innerHTML = `
         <div style="width:70px;height:70px;background:#ecfdf5;color:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 16px;border:2px solid #a7f3d0;">✓</div>
         <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;color:#065f46;margin-bottom:8px;">Bill Settled Successfully!</h2>
         <p style="color:#6b5540;font-size:13.5px;max-width:320px;margin:0 auto;line-height:1.5;">
           Thank you <b>${currentCustomer.name}</b> for dining with us! Your bill has been completely settled.
         </p>
         <button class="btn-primary" style="margin-top:18px;max-width:240px;background:#1a1a1a;color:#e8d5a1;" onclick="startFreshSession()">Start New Session →</button>
-      </div>
-    `;
+      `;
+    }
     return;
   }
 
-  document.getElementById('cust-login-gate').style.display = 'none';
-  document.getElementById('cust-menu-content').style.display = 'block';
-  document.getElementById('lbl-active-cust-name').innerText = currentCustomer.name;
-  document.getElementById('lbl-active-cust-phone').innerText = currentCustomer.phone;
+  // ৩. রিয়েল-টাইম কিচেন ও অ্যাকসেপ্ট স্ট্যাটাস ব্যানার
+  setDisplay('cust-status-screen', 'none');
+  setDisplay('cust-login-gate', 'none');
+  setDisplay('cust-menu-content', 'block');
+
+  const liveBanner = document.getElementById('cust-live-order-banner');
+  if (liveBanner) {
+    if (runningOrderForThisPhone) {
+      liveBanner.style.display = 'block';
+      if (runningOrderForThisPhone.status === 'preparing') {
+        liveBanner.innerHTML = `
+          <div class="live-status-card" style="background:#ecfdf5;border:1.5px solid #a7f3d0;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:24px;">🍳</span>
+              <div>
+                <b style="color:#065f46;font-size:13.5px;">Order Accepted & Cooking in Kitchen!</b>
+                <div style="font-size:11.5px;color:#047857;margin-top:2px;">Chef is preparing your dishes. You can add more items below.</div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (runningOrderForThisPhone.status === 'ready_to_serve') {
+        liveBanner.innerHTML = `
+          <div class="live-status-card" style="background:#fef3c7;border:1.5px solid #fde68a;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:24px;">🛎️</span>
+              <div>
+                <b style="color:#92400e;font-size:13.5px;">Food Prepared! Serving to Table Shortly</b>
+                <div style="font-size:11.5px;color:#b45309;margin-top:2px;">Waiter is on the way to your table.</div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (runningOrderForThisPhone.status === 'served') {
+        liveBanner.innerHTML = `
+          <div class="live-status-card" style="background:#eff6ff;border:1.5px solid #bfdbfe;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:24px;">🍽️</span>
+              <div>
+                <b style="color:#1e40af;font-size:13.5px;">Food Served — Enjoy Your Meal!</b>
+                <div style="font-size:11.5px;color:#2563eb;margin-top:2px;">Need more dishes or dessert? Add anytime from the menu.</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      liveBanner.style.display = 'none';
+    }
+  }
+
+  const nameLbl = document.getElementById('lbl-active-cust-name');
+  if (nameLbl) nameLbl.innerText = currentCustomer.name;
+  const phoneLbl = document.getElementById('lbl-active-cust-phone');
+  if (phoneLbl) phoneLbl.innerText = currentCustomer.phone;
 
   // Categories
   const cats = ['All', ...new Set((data.menu || []).map(m => m.category || 'General'))];
-  document.getElementById('cust-cats-container').innerHTML = cats.map(c => `
-    <button class="customer-cat-btn ${custSelectedCat === c ? 'active' : ''}" onclick="custSelectedCat='${c}'; renderCustomerMenu();">${c}</button>
-  `).join('');
+  const catsContainer = document.getElementById('cust-cats-container');
+  if (catsContainer) {
+    catsContainer.innerHTML = cats.map(c => `
+      <button class="customer-cat-btn ${custSelectedCat === c ? 'active' : ''}" onclick="custSelectedCat='${c}'; renderCustomerMenu();">${c}</button>
+    `).join('');
+  }
 
   let dishes = custSelectedCat === 'All' ? (data.menu || []) : (data.menu || []).filter(m => (m.category || 'General') === custSelectedCat);
   if (custSearchQuery.trim()) {
@@ -254,29 +341,31 @@ function renderCustomerMenu() {
   }
 
   const grid = document.getElementById('cust-dish-grid');
-  if (dishes.length === 0) {
-    grid.innerHTML = '<div style="text-align:center;padding:30px;color:#8b6d38;font-family:\'Cormorant Garamond\',serif;font-size:18px;">No matching food items found.</div>';
-  } else {
-    grid.innerHTML = dishes.map(d => {
-      const isAvailable = d.available !== false;
-      return `
-        <div class="customer-dish-card ${!isAvailable ? 'dish-paused' : ''}" ${isAvailable ? `onclick="addToCustCart('${d.id}')"` : ''}>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div class="cdc-category">${d.category || 'General'}</div>
-            ${!isAvailable ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:100px;font-weight:800;">OUT OF STOCK</span>' : ''}
+  if (grid) {
+    if (dishes.length === 0) {
+      grid.innerHTML = '<div style="text-align:center;padding:30px;color:#8b6d38;font-family:\'Cormorant Garamond\',serif;font-size:18px;">No matching food items found.</div>';
+    } else {
+      grid.innerHTML = dishes.map(d => {
+        const isAvailable = d.available !== false;
+        return `
+          <div class="customer-dish-card ${!isAvailable ? 'dish-paused' : ''}" ${isAvailable ? `onclick="addToCustCart('${d.id}')"` : ''}>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="cdc-category">${d.category || 'General'}</div>
+              ${!isAvailable ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:100px;font-weight:800;">OUT OF STOCK</span>' : ''}
+            </div>
+            <div class="cdc-name" style="${!isAvailable ? 'text-decoration:line-through;color:#991b1b;' : ''}">${d.name}</div>
+            <div class="cdc-footer">
+              <div class="cdc-price">₹ ${d.price}</div>
+              ${isAvailable ? `
+                <button class="cdc-add-btn" onclick="event.stopPropagation(); addToCustCart('${d.id}')">+</button>
+              ` : `
+                <button style="border:none;background:#e2e8f0;color:#94a3b8;font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;cursor:not-allowed;" disabled>Unavailable</button>
+              `}
+            </div>
           </div>
-          <div class="cdc-name" style="${!isAvailable ? 'text-decoration:line-through;color:#991b1b;' : ''}">${d.name}</div>
-          <div class="cdc-footer">
-            <div class="cdc-price">₹ ${d.price}</div>
-            ${isAvailable ? `
-              <button class="cdc-add-btn" onclick="event.stopPropagation(); addToCustCart('${d.id}')">+</button>
-            ` : `
-              <button style="border:none;background:#e2e8f0;color:#94a3b8;font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;cursor:not-allowed;" disabled>Unavailable</button>
-            `}
-          </div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+    }
   }
 
   updateCustCartBar();
@@ -306,12 +395,16 @@ function updateCustCartBar() {
   const count = custCart.reduce((s, i) => s + i.qty, 0);
   const total = custCart.reduce((s, i) => s + (i.price * i.qty), 0);
   const bar = document.getElementById('cust-cart-bar');
-  if (count > 0) {
-    bar.style.display = 'block';
-    document.getElementById('cust-cart-count').innerText = `${count} Items Selected`;
-    document.getElementById('cust-cart-total').innerText = `₹ ${total.toFixed(2)}`;
-  } else {
-    bar.style.display = 'none';
+  if (bar) {
+    if (count > 0) {
+      bar.style.display = 'block';
+      const cEl = document.getElementById('cust-cart-count');
+      if (cEl) cEl.innerText = `${count} Items Selected`;
+      const tEl = document.getElementById('cust-cart-total');
+      if (tEl) tEl.innerText = `₹ ${total.toFixed(2)}`;
+    } else {
+      bar.style.display = 'none';
+    }
   }
 }
 
@@ -388,7 +481,6 @@ async function submitCustomerOrderToKitchen() {
     const existingOrder = cData.orders.find(o => o.tableId === targetTableId && o.status !== 'completed');
 
     if (existingOrder) {
-      // Add-on আইটেম যোগ করা (অনুমোদনের অপেক্ষায় থাকবে)
       custCart.forEach(newItem => {
         const match = existingOrder.items.find(i => i.dishId === newItem.dishId);
         if (match) {
@@ -401,10 +493,8 @@ async function submitCustomerOrderToKitchen() {
       existingOrder.subtotal = existingOrder.items.reduce((s, i) => s + (i.price * i.qty), 0);
       existingOrder.gst = gstRate > 0 ? (existingOrder.subtotal * (gstRate / 100)) : 0;
       existingOrder.total = existingOrder.subtotal + existingOrder.gst;
-      // যদি কিচেনে অলরেডি থাকে, তবুও অ্যাড-অন রিসেপশন ভেরিফাই করবে
       existingOrder.pendingApproval = true;
     } else {
-      // একদম নতুন অর্ডার — সরাসরি কিচেনে যাবে না, রিসেপশন যাচাই করবে
       const orderNum = 100 + cData.orders.length + 1;
       cData.orders.push({
         id: 'ord_' + Date.now(),
@@ -418,7 +508,7 @@ async function submitCustomerOrderToKitchen() {
         gst,
         gstRate,
         total,
-        status: 'pending_approval', // রিসেপশন/ওয়েটার অ্যাকসেপ্টের অপেক্ষায়
+        status: 'pending_approval',
         source: 'customer_qr',
         date: window.todayStr(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -431,7 +521,7 @@ async function submitCustomerOrderToKitchen() {
 
     custCart = [];
     closeSheet();
-    document.getElementById('cust-cart-bar').style.display = 'none';
+    setDisplay('cust-cart-bar', 'none');
     renderCustomerMenu();
   } catch (err) {
     alert("Order failed: " + err.message);
@@ -446,11 +536,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     targetTableId = params.get('table');
 
     if (!targetCafeId) {
-      document.getElementById('cust-loading').innerHTML = `
-        <div style="font-size:36px;margin-bottom:10px;">⚠️</div>
-        <div style="font-size:16px;font-weight:700;color:#dc2626;">Invalid QR Code</div>
-        <p style="font-size:12px;color:#64748b;margin-top:4px;">Please scan the table QR code again or contact staff.</p>
-      `;
+      const lEl = document.getElementById('cust-loading');
+      if (lEl) {
+        lEl.innerHTML = `
+          <div style="font-size:36px;margin-bottom:10px;">⚠️</div>
+          <div style="font-size:16px;font-weight:700;color:#dc2626;">Invalid QR Code</div>
+          <p style="font-size:12px;color:#64748b;margin-top:4px;">Please scan the table QR code again or contact staff.</p>
+        `;
+      }
       return;
     }
 
@@ -468,7 +561,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         window.RESTAURANT_DATA.cafeId = targetCafeId;
         renderCustomerMenu();
       } else {
-        document.getElementById('cust-loading').innerHTML = '<div style="color:#dc2626;font-weight:700;">Restaurant not found!</div>';
+        const lEl = document.getElementById('cust-loading');
+        if (lEl) lEl.innerHTML = '<div style="color:#dc2626;font-weight:700;">Restaurant not found!</div>';
       }
     }, (err) => {
       console.error("Firestore fetch error:", err);
