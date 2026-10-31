@@ -20,7 +20,6 @@ let auth = null;
 let db = null;
 let currentCafeListener = null;
 
-// ইনবিল্ট গোল্ডেন কাটলারি লোগো
 const DEFAULT_GOLD_SVG_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
 function initFirebase() {
@@ -46,7 +45,6 @@ window.todayStr = function() {
   }).format(new Date());
 };
 
-// গ্লোবাল স্টেট
 window.RESTAURANT_DATA = {
   cafeId: 'default_cafe', name: 'TableMaster Bistro', phone: '', address: '',
   masterPin: '1234', gstRate: 0, serviceRate: 0, logo: '', googleReview: '',
@@ -95,8 +93,24 @@ window.playAlertTone = function(type) {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    if (type === 'kot') {
-      // কিচেনের জন্য জোরালো ডবল বেল ডিং (Double Ding - 880Hz -> 440Hz)
+    if (type === 'approval') {
+      // রিসেপশন ও ওয়েটারের জন্য কিউআর অর্ডার যাচাই অ্যালার্ট (High Ping-Pong Chime)
+      const now = ctx.currentTime;
+      [0, 0.14, 0.28].forEach((offset, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        const freq = (idx % 2 === 0) ? 1046.50 : 1318.51; // C6 - E6
+        osc.frequency.setValueAtTime(freq, now + offset);
+        gain.gain.setValueAtTime(0.45, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.16);
+      });
+    } else if (type === 'kot') {
+      // কিচেনের জন্য জোরালো ডবল বেল ডিং (880Hz -> 440Hz)
       const now = ctx.currentTime;
       [0, 0.22].forEach(offset => {
         const osc = ctx.createOscillator();
@@ -112,10 +126,9 @@ window.playAlertTone = function(type) {
         osc.stop(now + offset + 0.18);
       });
     } else if (type === 'ready') {
-      // ওয়েটারের জন্য খাবার রেডি হওয়ার সার্ভিস বেল (Triple Chime - D5, A5, D6)
+      // ওয়েটারের জন্য খাবার রেডি হওয়ার সার্ভিস বেল (D5, A5, D6)
       const now = ctx.currentTime;
-      const notes = [587.33, 880, 1174.66];
-      notes.forEach((freq, idx) => {
+      [587.33, 880, 1174.66].forEach((freq, idx) => {
         const offset = idx * 0.12;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -131,8 +144,7 @@ window.playAlertTone = function(type) {
     } else if (type === 'cash') {
       // ক্যাশ রেজিস্টার পেমেন্ট টোন
       const now = ctx.currentTime;
-      const notes = [987.77, 1318.51];
-      notes.forEach((freq, idx) => {
+      [987.77, 1318.51].forEach((freq, idx) => {
         const offset = idx * 0.1;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -361,10 +373,10 @@ function buildQRCardHtml(tableId) {
       <div style="font-size:24px;font-weight:800;color:#2563eb;margin-bottom:10px;">${tbl.name}</div>
       <img src="${qrImg}" style="width:180px;height:180px;display:block;margin:0 auto 10px;" alt="Table QR">
       <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;text-align:left;line-height:1.4;font-size:11px;border:1px solid #e2e8f0;">
-        <div style="font-weight:800;color:#0f172a;margin-bottom:3px;">📱 Scan to Order / স্ক্যান করে খাবার বাছুন</div>
+        <div style="font-weight:800;color:#0f172a;margin-bottom:3px;">📱 Scan to Order</div>
         <div>1. Open camera & scan QR code</div>
-        <div>2. Select dishes from digital menu</div>
-        <div>3. Food order sent directly to kitchen</div>
+        <div>2. Enter Name & Mobile to view digital menu</div>
+        <div>3. Place order directly from your phone</div>
       </div>
     </div>
   `;
