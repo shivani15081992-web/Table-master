@@ -1,5 +1,6 @@
 /* ==========================================================================
-   TableMaster Pro — Shared Core Engine (shared.js)
+   SmartFix TM — Shared Core Engine (shared.js)
+   Company: SmartFix
    Developer: Debapriya Sarkar (Contact: 9046356631)
    Ultra-Fast Cache-First, Atomic Sync, Audio Alert & FCM Push Engine
    ========================================================================== */
@@ -20,8 +21,31 @@ let auth = null;
 let db = null;
 let currentCafeListener = null;
 
+/* ==========================================================================
+   SMARTFIX TM — BRAND CONSTANTS
+   ========================================================================== */
+window.SUPER_ADMIN_EMAIL = "debapriyasarakara@gmail.com";
+
+window.SMARTFIX_BRAND = {
+  name: "SmartFix TM",
+  company: "SmartFix",
+  tagline: "Enterprise Restaurant Management Suite",
+  developer: "Debapriya Sarkar",
+  developerPhone: "9046356631",
+  primaryGold: "#F5B800",
+  lightGold: "#FFE082",
+  darkGold: "#C89B00",
+  charcoal: "#0D0D0D",
+  charcoalSoft: "#1A1A1A"
+};
+
 const DEFAULT_GOLD_SVG_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%231a1a1a'/><path d='M160 120v110c0 22 18 40 40 40h20a40 40 0 0 0 40-40V120M210 120v272M352 260V120a70 70 0 0 0-70 70v70c0 22 18 40 40 40h30v132' fill='none' stroke='%23e8d5a1' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
+const SMARTFIX_CROWN_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23FFE082'/><stop offset='0.5' stop-color='%23F5B800'/><stop offset='1' stop-color='%23C89B00'/></linearGradient></defs><rect width='512' height='512' rx='110' fill='%230D0D0D'/><rect x='20' y='20' width='472' height='472' rx='95' fill='none' stroke='url(%23g)' stroke-width='5'/><circle cx='256' cy='220' r='105' fill='none' stroke='url(%23g)' stroke-width='7'/><path d='M 172 195 L 200 240 L 256 200 L 312 240 L 340 195 L 348 260 L 164 260 Z' fill='url(%23g)'/><g stroke='url(%23g)' stroke-width='11' stroke-linecap='round' fill='none'><line x1='215' y1='270' x2='215' y2='360'/><line x1='200' y1='270' x2='200' y2='295'/><line x1='230' y1='270' x2='230' y2='295'/><path d='M 200 295 Q 200 308 215 308 Q 230 308 230 295'/><line x1='295' y1='270' x2='295' y2='360'/><path d='M 295 270 Q 320 290 295 320'/></g><text x='256' y='420' fill='url(%23g)' font-family='Georgia,serif' font-size='52' font-weight='900' text-anchor='middle'>SmartFix</text><text x='256' y='452' fill='%23F5B800' font-family='Arial,sans-serif' font-size='14' font-weight='800' text-anchor='middle' letter-spacing='8'>TM</text></svg>";
+
+/* ==========================================================================
+   FIREBASE INIT
+   ========================================================================== */
 function initFirebase() {
   try {
     if (typeof firebase !== 'undefined') {
@@ -39,6 +63,9 @@ function initFirebase() {
   }
 }
 
+/* ==========================================================================
+   DATE & DATA HELPERS
+   ========================================================================== */
 window.todayStr = function() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
@@ -46,8 +73,11 @@ window.todayStr = function() {
 };
 
 window.RESTAURANT_DATA = {
-  cafeId: 'default_cafe', name: 'TableMaster Bistro', phone: '', address: '',
+  cafeId: 'default_cafe', name: 'SmartFix Bistro', phone: '', address: '',
   masterPin: '1234', gstRate: 0, serviceRate: 0, logo: '', googleReview: '',
+  plan: 'trial', subscriptionStatus: 'active',
+  trialStartDate: null, trialEndsAt: null,
+  premiumUntil: null, premiumPlan: null, premiumStartedAt: null,
   tables: [
     { id: 't1', name: 'T-01', seats: 2, status: 'available', booking: null },
     { id: 't2', name: 'T-02', seats: 4, status: 'available', booking: null },
@@ -68,6 +98,33 @@ window.RESTAURANT_DATA = {
 
 window.CURRENT_USER_ROLE = sessionStorage.getItem('tmpro_role_mode') || 'owner';
 window.getData = function() { return window.RESTAURANT_DATA || {}; };
+
+/* ==========================================================================
+   SUBSCRIPTION / PLAN STATUS HELPERS
+   ========================================================================== */
+window.getCafePlanStatus = function(cafe) {
+  if (!cafe) return 'trial';
+  if (cafe.subscriptionStatus === 'suspended') return 'suspended';
+  if (cafe.plan === 'premium' && cafe.premiumUntil && new Date(cafe.premiumUntil) > new Date()) return 'premium';
+  if (cafe.plan === 'trial' && cafe.trialEndsAt && new Date(cafe.trialEndsAt) > new Date()) return 'trial';
+  if (cafe.plan === 'premium' && cafe.premiumUntil) return 'expired';
+  if (cafe.plan === 'trial' && cafe.trialEndsAt) return 'expired';
+  return 'trial';
+};
+
+window.getDaysRemaining = function(cafe) {
+  if (!cafe) return null;
+  const status = window.getCafePlanStatus(cafe);
+  const expiry = (status === 'premium') ? cafe.premiumUntil : cafe.trialEndsAt;
+  if (!expiry) return null;
+  const ms = new Date(expiry).getTime() - Date.now();
+  return Math.ceil(ms / (1000 * 60 * 60 * 24));
+};
+
+window.isCafeActive = function(cafe) {
+  const s = window.getCafePlanStatus(cafe);
+  return s === 'trial' || s === 'premium';
+};
 
 /* ==========================================================================
    REALTIME SYNTHESIZER SOUND ENGINE (Web Audio API)
@@ -94,13 +151,12 @@ window.playAlertTone = function(type) {
     if (!ctx) return;
 
     if (type === 'approval') {
-      // রিসেপশন ও ওয়েটারের জন্য কিউআর অর্ডার যাচাই অ্যালার্ট (High Ping-Pong Chime)
       const now = ctx.currentTime;
       [0, 0.14, 0.28].forEach((offset, idx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        const freq = (idx % 2 === 0) ? 1046.50 : 1318.51; // C6 - E6
+        const freq = (idx % 2 === 0) ? 1046.50 : 1318.51;
         osc.frequency.setValueAtTime(freq, now + offset);
         gain.gain.setValueAtTime(0.45, now + offset);
         gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.16);
@@ -110,7 +166,6 @@ window.playAlertTone = function(type) {
         osc.stop(now + offset + 0.16);
       });
     } else if (type === 'kot') {
-      // কিচেনের জন্য জোরালো ডবল বেল ডিং (880Hz -> 440Hz)
       const now = ctx.currentTime;
       [0, 0.22].forEach(offset => {
         const osc = ctx.createOscillator();
@@ -126,7 +181,6 @@ window.playAlertTone = function(type) {
         osc.stop(now + offset + 0.18);
       });
     } else if (type === 'ready') {
-      // ওয়েটারের জন্য খাবার রেডি হওয়ার সার্ভিস বেল (D5, A5, D6)
       const now = ctx.currentTime;
       [587.33, 880, 1174.66].forEach((freq, idx) => {
         const offset = idx * 0.12;
@@ -142,7 +196,6 @@ window.playAlertTone = function(type) {
         osc.stop(now + offset + 0.25);
       });
     } else if (type === 'cash') {
-      // ক্যাশ রেজিস্টার পেমেন্ট টোন
       const now = ctx.currentTime;
       [987.77, 1318.51].forEach((freq, idx) => {
         const offset = idx * 0.1;
@@ -223,9 +276,9 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
   }
 
   const badge = document.getElementById('sync-status');
-  if (badge) { 
-    badge.className = 'sync-badge online'; 
-    badge.innerHTML = '⚡ Instant'; 
+  if (badge) {
+    badge.className = 'sync-badge online';
+    badge.innerHTML = '⚡ Instant';
   }
 
   if (currentCafeListener) { try { currentCafeListener(); } catch(e){} }
@@ -248,16 +301,16 @@ function bindCafeCloudListener(cafeId, onUpdateCallback) {
       } catch(e) {}
     }
 
-    if (badge) { 
-      badge.className = 'sync-badge online'; 
-      badge.innerHTML = '☁️ Live'; 
+    if (badge) {
+      badge.className = 'sync-badge online';
+      badge.innerHTML = '☁️ Live';
     }
     if (typeof onUpdateCallback === 'function') onUpdateCallback();
   }, (err) => {
     console.warn("Firestore sync warning:", err);
-    if (badge) { 
-      badge.className = 'sync-badge online'; 
-      badge.innerHTML = '⚡ Local Mode'; 
+    if (badge) {
+      badge.className = 'sync-badge online';
+      badge.innerHTML = '⚡ Local Mode';
     }
     if (typeof onUpdateCallback === 'function') onUpdateCallback();
   });
@@ -267,8 +320,8 @@ window.cloudSave = function() {
   const data = window.getData();
   if (!data || !data.cafeId || !db) return;
 
-  try { 
-    localStorage.setItem('tmpro_cafe_cache_' + data.cafeId, JSON.stringify(data)); 
+  try {
+    localStorage.setItem('tmpro_cafe_cache_' + data.cafeId, JSON.stringify(data));
   } catch(e){}
 
   const badge = document.getElementById('sync-status');
@@ -280,6 +333,28 @@ window.cloudSave = function() {
     console.error("Cloud save failed:", err);
     if (badge) { badge.className = 'sync-badge syncing'; badge.innerHTML = '⚠️ Offline Saved'; }
   });
+};
+
+/* ==========================================================================
+   SYSTEM SETTINGS (Pricing) LOADER — for index.html landing page
+   ========================================================================== */
+window.loadPricingSettings = async function() {
+  const defaults = { trialDays: 30, sixMonthPrice: 2999, oneYearPrice: 4999 };
+  try {
+    if (!db) return defaults;
+    const snap = await db.collection("systemSettings").doc("pricing").get();
+    if (snap.exists) {
+      const s = snap.data();
+      return {
+        trialDays: s.trialDays || defaults.trialDays,
+        sixMonthPrice: s.sixMonthPrice || defaults.sixMonthPrice,
+        oneYearPrice: s.oneYearPrice || defaults.oneYearPrice
+      };
+    }
+  } catch (err) {
+    console.warn("Pricing settings load failed:", err);
+  }
+  return defaults;
 };
 
 /* ==========================================================================
@@ -319,7 +394,7 @@ function toggleLanguage(callback) {
 
 function updateHeaderBrand(data) {
   const nameEl = document.getElementById('txt-cafe-name');
-  if (nameEl) nameEl.innerText = data.name || 'TableMaster Pro';
+  if (nameEl) nameEl.innerText = data.name || 'SmartFix TM';
   const roleEl = document.getElementById('active-user-role');
   if (roleEl) roleEl.innerText = (window.CURRENT_USER_ROLE || 'owner').toUpperCase();
 
@@ -378,6 +453,7 @@ function buildQRCardHtml(tableId) {
         <div>2. Enter Name & Mobile to view digital menu</div>
         <div>3. Place order directly from your phone</div>
       </div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:6px;font-weight:700;">Powered by SmartFix TM</div>
     </div>
   `;
 }
