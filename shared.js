@@ -127,92 +127,112 @@ window.isCafeActive = function(cafe) {
 };
 
 /* ==========================================================================
-   REALTIME SYNTHESIZER SOUND ENGINE (Web Audio API)
+   REALTIME SYNTHESIZER SOUND ENGINE (Robust Audio Unlock)
    ========================================================================== */
 let audioCtx = null;
+let audioUnlocked = false;
 
-function getAudioContext() {
-  if (!audioCtx) {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) audioCtx = new AudioContext();
+function createAudioContext() {
+  try {
+    if (!audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) audioCtx = new AudioContext();
+    }
+    return audioCtx;
+  } catch (err) {
+    console.warn("AudioContext creation failed:", err);
+    return null;
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-  return audioCtx;
 }
 
-document.addEventListener('click', () => { getAudioContext(); }, { once: true });
-document.addEventListener('touchstart', () => { getAudioContext(); }, { once: true });
+// Silent buffer play — iOS/Android audio unlock trick
+function unlockAudio() {
+  const ctx = createAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(() => {
+      // Play 1-sample silent buffer to fully unlock
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      audioUnlocked = true;
+      console.log("🔊 Audio unlocked");
+    }).catch(err => console.warn("Audio resume failed:", err));
+  } else if (ctx.state === 'running') {
+    audioUnlocked = true;
+  }
+}
+
+// Attach to EVERY user gesture — not just once
+['click', 'touchstart', 'touchend', 'pointerdown', 'keydown'].forEach(evtName => {
+  document.addEventListener(evtName, unlockAudio, { passive: true });
+});
+
+// Also try to unlock on page focus/visibility change
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) unlockAudio();
+});
+window.addEventListener('focus', unlockAudio);
+
+// ===== CORE TONE PLAYER =====
+function _playTone(type) {
+  const ctx = createAudioContext();
+  if (!ctx) { console.warn("No AudioContext"); return; }
+  if (ctx.state !== 'running') {
+    ctx.resume().then(() => _playTone(type)).catch(e => console.warn("resume failed", e));
+    return;
+  }
+
+  const now = ctx.currentTime;
+  const tones = {
+    approval: [
+      { freq: 1046.50, offset: 0,    dur: 0.16, type: 'sine',     gain: 0.45 },
+      { freq: 1318.51, offset: 0.14, dur: 0.16, type: 'sine',     gain: 0.45 },
+      { freq: 1046.50, offset: 0.28, dur: 0.16, type: 'sine',     gain: 0.45 }
+    ],
+    kot: [
+      { freq: 880,  offset: 0,    dur: 0.18, type: 'sine',     gain: 0.4, sweepTo: 440 },
+      { freq: 880,  offset: 0.22, dur: 0.18, type: 'sine',     gain: 0.4, sweepTo: 440 }
+    ],
+    ready: [
+      { freq: 587.33,  offset: 0,    dur: 0.25, type: 'triangle', gain: 0.4 },
+      { freq: 880,     offset: 0.12, dur: 0.25, type: 'triangle', gain: 0.4 },
+      { freq: 1174.66, offset: 0.24, dur: 0.25, type: 'triangle', gain: 0.4 }
+    ],
+    cash: [
+      { freq: 987.77,  offset: 0,   dur: 0.22, type: 'sine', gain: 0.35 },
+      { freq: 1318.51, offset: 0.1, dur: 0.22, type: 'sine', gain: 0.35 }
+    ]
+  };
+
+  const pattern = tones[type];
+  if (!pattern) return;
+
+  pattern.forEach(note => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = note.type;
+    osc.frequency.setValueAtTime(note.freq, now + note.offset);
+    if (note.sweepTo) {
+      osc.frequency.exponentialRampToValueAtTime(note.sweepTo, now + note.offset + note.dur);
+    }
+    gain.gain.setValueAtTime(note.gain, now + note.offset);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + note.offset + note.dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now + note.offset);
+    osc.stop(now + note.offset + note.dur);
+  });
+}
 
 window.playAlertTone = function(type) {
   try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-
-    if (type === 'approval') {
-      const now = ctx.currentTime;
-      [0, 0.14, 0.28].forEach((offset, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        const freq = (idx % 2 === 0) ? 1046.50 : 1318.51;
-        osc.frequency.setValueAtTime(freq, now + offset);
-        gain.gain.setValueAtTime(0.45, now + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.16);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + offset);
-        osc.stop(now + offset + 0.16);
-      });
-    } else if (type === 'kot') {
-      const now = ctx.currentTime;
-      [0, 0.22].forEach(offset => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, now + offset);
-        osc.frequency.exponentialRampToValueAtTime(440, now + offset + 0.18);
-        gain.gain.setValueAtTime(0.35, now + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + offset);
-        osc.stop(now + offset + 0.18);
-      });
-    } else if (type === 'ready') {
-      const now = ctx.currentTime;
-      [587.33, 880, 1174.66].forEach((freq, idx) => {
-        const offset = idx * 0.12;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + offset);
-        gain.gain.setValueAtTime(0.4, now + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.25);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + offset);
-        osc.stop(now + offset + 0.25);
-      });
-    } else if (type === 'cash') {
-      const now = ctx.currentTime;
-      [987.77, 1318.51].forEach((freq, idx) => {
-        const offset = idx * 0.1;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + offset);
-        gain.gain.setValueAtTime(0.35, now + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.22);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + offset);
-        osc.stop(now + offset + 0.22);
-      });
-    }
+    unlockAudio();          // ensure unlocked
+    _playTone(type);
   } catch (err) {
-    console.warn("Audio Alert Warning:", err);
+    console.warn("Alert tone failed:", err);
   }
 };
 
