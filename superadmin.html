@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SmartFix TM — Super Admin Control Center</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0D0D0D">
+<link rel="stylesheet" href="shared.css">
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+<style>
+:root{--gold:#F5B800;--gold-light:#FFD54F;--gold-dark:#C89B00;--charcoal:#0D0D0D;--charcoal-2:#1A1A1A;--charcoal-3:#222;--border:#2A2A2A;--text:#fff;--muted:#8A8A8A;--dim:#B0B0B0;--success:#10B981;--danger:#EF4444;--warning:#F59E0B;--info:#3B82F6}
+body.sa-mode{background:var(--charcoal);color:var(--text);font-family:'Plus Jakarta Sans','Hind Siliguri',sans-serif}
+.sa-login{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 20% 20%,rgba(245,184,0,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(245,184,0,.05) 0%,transparent 50%),var(--charcoal)}
+.sa-login-card{background:linear-gradient(135deg,#1A1A1A 0%,#0F0F0F 100%);border:1px solid rgba(245,184,0,.2);border-radius:24px;padding:32px 28px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 80px rgba(245,184,0,.06)}
+.sa-logo-wrap{text-align:center;margin-bottom:22px}
+.sa-logo-svg{width:76px;height:76px;margin:0 auto 14px;filter:drop-shadow(0 4px 20px rgba(245,184,0,.3))}
+.sa-brand-name{font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:900;background:linear-gradient(135deg,#FFE082 0%,#F5B800 50%,#C89B00 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px}
+.sa-brand-sub{font-size:10px;letter-spacing:4px;color:var(--gold);font-weight:800;margin-top:2px}
+.sa-badge{display:inline-block;padding:3px 10px;background:rgba(245,184,0,.12);border:1px solid rgba(245,184,0,.3);border-radius:100px;font-size:9.5px;color:var(--gold);font-weight:800;letter-spacing:1.5px;margin-top:10px}
+.sa-login-card label{color:var(--dim);font-size:10px;letter-spacing:1.2px}
+.sa-login-card input{background:rgba(255,255,255,.03);border:1.5px solid rgba(245,184,0,.2);color:var(--text);font-size:14px}
+.sa-login-card input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,184,0,.1)}
+.sa-btn-gold{width:100%;background:linear-gradient(135deg,#FFE082 0%,#F5B800 50%,#C89B00 100%);color:#0D0D0D;border:none;padding:13px;border-radius:10px;font-weight:900;font-size:13.5px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 20px rgba(245,184,0,.25);transition:transform .15s}
+.sa-btn-gold:hover{transform:translateY(-1px);box-shadow:0 6px 25px rgba(245,184,0,.35)}
+.sa-btn-gold:disabled{opacity:.5;cursor:not-allowed}
+.sa-header{position:sticky;top:0;z-index:100;background:rgba(13,13,13,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(245,184,0,.15);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;padding-top:calc(12px + env(safe-area-inset-top))}
+.sa-header-left{display:flex;align-items:center;gap:10px}
+.sa-header-logo{width:38px;height:38px;filter:drop-shadow(0 2px 10px rgba(245,184,0,.3))}
+.sa-header-brand{font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;font-weight:900;background:linear-gradient(135deg,#FFE082,#F5B800,#C89B00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.1}
+.sa-header-tag{font-size:8.5px;letter-spacing:2.5px;color:var(--gold);font-weight:800;margin-top:1px}
+.sa-header-right{display:flex;align-items:center;gap:8px}
+.sa-user-pill{display:flex;align-items:center;gap:6px;background:rgba(245,184,0,.08);border:1px solid rgba(245,184,0,.2);border-radius:100px;padding:5px 10px 5px 5px;font-size:10.5px;color:var(--gold);font-weight:700}
+.sa-user-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FFE082,#F5B800);color:#0D0D0D;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px}
+.sa-btn-icon{width:34px;height:34px;border-radius:9px;border:1px solid rgba(245,184,0,.2);background:rgba(245,184,0,.05);color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.sa-btn-icon:hover{background:rgba(245,184,0,.15)}
+.sa-main{max-width:1200px;margin:0 auto;padding:18px;padding-bottom:80px}
+.sa-section-title{font-size:11px;color:var(--gold);font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sa-section-title::before{content:'';width:3px;height:14px;background:linear-gradient(180deg,var(--gold),transparent);border-radius:2px}
+.sa-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px}
+.sa-stat-card{background:linear-gradient(135deg,#1A1A1A 0%,#141414 100%);border:1px solid var(--border);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden}
+.sa-stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.5}
+.sa-stat-card.active::before{background:linear-gradient(90deg,transparent,var(--success),transparent)}
+.sa-stat-card.warning::before{background:linear-gradient(90deg,transparent,var(--warning),transparent)}
+.sa-stat-card.danger::before{background:linear-gradient(90deg,transparent,var(--danger),transparent)}
+.sa-stat-label{font-size:9.5px;letter-spacing:1.2px;color:var(--muted);text-transform:uppercase;font-weight:700;margin-bottom:6px}
+.sa-stat-value{font-size:24px;font-weight:900;color:var(--text);line-height:1}
+.sa-stat-card.active .sa-stat-value{color:var(--success)}
+.sa-stat-card.warning .sa-stat-value{color:var(--warning)}
+.sa-stat-card.danger .sa-stat-value{color:var(--danger)}
+.sa-stat-card.gold .sa-stat-value{background:linear-gradient(135deg,#FFE082,#F5B800);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sa-pricing-card{background:linear-gradient(135deg,#1A1A1A 0%,#0F0F0F 100%);border:1px solid rgba(245,184,0,.25);border-radius:18px;padding:18px;margin-bottom:20px;position:relative;overflow:hidden}
+.sa-pricing-card::after{content:'';position:absolute;top:-50px;right:-50px;width:150px;height:150px;background:radial-gradient(circle,rgba(245,184,0,.1) 0%,transparent 70%);pointer-events:none}
+.sa-pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+.sa-pricing-input-group{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.sa-pricing-input-group label{color:var(--muted);font-size:9.5px;letter-spacing:1px}
+.sa-pricing-input-group input{background:transparent;border:none;color:var(--gold);font-size:18px;font-weight:900;padding:2px 0;width:100%}
+.sa-pricing-input-group input:focus{outline:none}
+.sa-search-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.sa-search-input{flex:1;min-width:200px;background:var(--charcoal-2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:13px}
+.sa-search-input:focus{outline:none;border-color:var(--gold)}
+.sa-filter-btn{padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--charcoal-2);color:var(--dim);font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.sa-filter-btn.active{background:rgba(245,184,0,.12);border-color:rgba(245,184,0,.4);color:var(--gold)}
+.sa-cafe-list{display:flex;flex-direction:column;gap:10px}
+.sa-cafe-card{background:linear-gradient(135deg,#1A1A1A 0%,#141414 100%);border:1px solid var(--border);border-radius:14px;padding:14px;transition:border-color .15s}
+.sa-cafe-card:hover{border-color:rgba(245,184,0,.3)}
+.sa-cafe-card.suspended{border-color:rgba(239,68,68,.4);background:linear-gradient(135deg,#1A0F0F 0%,#141010 100%)}
+.sa-cafe-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px}
+.sa-cafe-info{flex:1;min-width:0}
+.sa-cafe-name{font-size:15px;font-weight:900;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sa-cafe-meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5}
+.sa-cafe-meta b{color:var(--dim)}
+.sa-status-badge{padding:3px 9px;border-radius:100px;font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap}
+.sa-status-badge.trial{background:rgba(245,184,0,.15);color:var(--gold);border:1px solid rgba(245,184,0,.3)}
+.sa-status-badge.premium{background:rgba(16,185,129,.15);color:var(--success);border:1px solid rgba(16,185,129,.3)}
+.sa-status-badge.expired{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+.sa-status-badge.suspended{background:rgba(239,68,68,.2);color:#FF6B6B;border:1px solid rgba(239,68,68,.5)}
+.sa-cafe-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(255,255,255,.02);border-radius:8px;padding:8px;margin-bottom:10px;text-align:center}
+.sa-cafe-stat-label{font-size:8.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+.sa-cafe-stat-value{font-size:13px;font-weight:900;color:var(--gold);margin-top:2px}
+.sa-cafe-actions{display:flex;gap:5px;flex-wrap:wrap}
+.sa-action-btn{padding:5px 9px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--dim);font-size:10.5px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.sa-action-btn:hover{background:rgba(245,184,0,.1);border-color:rgba(245,184,0,.3);color:var(--gold)}
+.sa-action-btn.danger{color:#FF8888;border-color:rgba(239,68,68,.3)}
+.sa-action-btn.danger:hover{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);color:#FFB0B0}
+.sa-action-btn.success{color:var(--success);border-color:rgba(16,185,129,.3)}
+.sa-action-btn.success:hover{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.5)}
+.sa-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:500;display:none;align-items:flex-end;justify-content:center}
+.sa-modal-backdrop.active{display:flex}
+.sa-modal{background:var(--charcoal-2);border:1px solid rgba(245,184,0,.2);border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:85dvh;overflow-y:auto;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+.sa-modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.sa-modal-title{font-size:16px;font-weight:900;color:var(--gold)}
+.sa-modal-close{width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--dim);cursor:pointer;font-weight:900}
+.sa-modal-close:hover{background:rgba(245,184,0,.1);color:var(--gold)}
+.sa-modal label{color:var(--muted);font-size:10px;letter-spacing:1px;font-weight:700;text-transform:uppercase;margin-bottom:5px;display:block}
+.sa-modal input,.sa-modal select{background:rgba(255,255,255,.03);border:1.5px solid var(--border);color:var(--text);border-radius:9px;padding:10px 12px;width:100%;font-size:13px;margin-bottom:12px}
+.sa-modal input:focus,.sa-modal select:focus{outline:none;border-color:var(--gold)}
+.sa-empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.sa-empty-icon{font-size:48px;margin-bottom:12px;opacity:.6}
+.sa-toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--charcoal-2);border:1px solid var(--gold);color:var(--gold);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;max-width:90vw}
+.sa-toast.show{display:block;animation:sa-toast-in .3s ease}
+.sa-toast.success{border-color:var(--success);color:var(--success)}
+.sa-toast.error{border-color:var(--danger);color:var(--danger)}
+@keyframes sa-toast-in{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.sa-dev-footer{text-align:center;padding:20px;color:var(--muted);font-size:10.5px;border-top:1px solid var(--border);margin-top:20px}
+.sa-dev-footer b{color:var(--gold)}
+</style>
+</head>
+<body class="sa-mode">
+
+<!-- LOGIN -->
+<div id="sa-login-screen" class="sa-login">
+  <div class="sa-login-card">
+    <div class="sa-logo-wrap">
+      <svg class="sa-logo-svg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE082"/><stop offset="0.5" stop-color="#F5B800"/><stop offset="1" stop-color="#C89B00"/></linearGradient></defs>
+        <rect width="512" height="512" rx="110" fill="#0D0D0D"/>
+        <rect x="20" y="20" width="472" height="472" rx="95" fill="none" stroke="url(#goldGrad)" stroke-width="5"/>
+        <circle cx="256" cy="220" r="105" fill="none" stroke="url(#goldGrad)" stroke-width="7"/>
+        <path d="M 172 195 L 200 240 L 256 200 L 312 240 L 340 195 L 348 260 L 164 260 Z" fill="url(#goldGrad)"/>
+        <g stroke="url(#goldGrad)" stroke-width="11" stroke-linecap="round" fill="none">
+          <line x1="215" y1="270" x2="215" y2="360"/>
+          <line x1="200" y1="270" x2="200" y2="295"/>
+          <line x1="230" y1="270" x2="230" y2="295"/>
+          <path d="M 200 295 Q 200 308 215 308 Q 230 308 230 295"/>
+          <line x1="295" y1="270" x2="295" y2="360"/>
+          <path d="M 295 270 Q 320 290 295 320"/>
+        </g>
+        <text x="256" y="420" fill="url(#goldGrad)" font-family="Georgia,serif" font-size="52" font-weight="900" text-anchor="middle">SmartFix</text>
+        <text x="256" y="452" fill="#F5B800" font-family="Arial,sans-serif" font-size="14" font-weight="800" text-anchor="middle" letter-spacing="8">TM</text>
+      </svg>
+      <div class="sa-brand-name">SmartFix TM</div>
+      <div class="sa-brand-sub">ENTERPRISE EDITION</div>
+      <div class="sa-badge">🔐 SUPER ADMIN</div>
+    </div>
+    <form onsubmit="handleSALogin(event)">
+      <label>Developer Email</label>
+      <input type="email" id="sa-email" required placeholder="developer@smartfix.com" autocomplete="username">
+      <label>Master Password</label>
+      <input type="password" id="sa-pass" required placeholder="••••••••" autocomplete="current-password">
+      <button type="submit" class="sa-btn-gold" id="sa-login-btn">🔓 Access Control Center →</button>
+    </form>
+    <div style="text-align:center;margin-top:18px;font-size:10px;color:var(--muted)">
+      Authorized Access Only · SmartFix TM<br>
+      <span style="color:var(--gold)">Developer: Debapriya Sarkar</span>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="sa-dashboard" style="display:none">
+  <header class="sa-header">
+    <div class="sa-header-left">
+      <svg class="sa-header-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="goldGrad2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE082"/><stop offset="0.5" stop-color="#F5B800"/><stop offset="1" stop-color="#C89B00"/></linearGradient></defs>
+        <rect width="512" height="512" rx="110" fill="#0D0D0D"/>
+        <circle cx="256" cy="220" r="105" fill="none" stroke="url(#goldGrad2)" stroke-width="7"/>
+        <path d="M 172 195 L 200 240 L 256 200 L 312 240 L 340 195 L 348 260 L 164 260 Z" fill="url(#goldGrad2)"/>
+        <text x="256" y="440" fill="url(#goldGrad2)" font-family="Georgia,serif" font-size="80" font-weight="900" text-anchor="middle">S</text>
+      </svg>
+      <div>
+        <div class="sa-header-brand">SmartFix TM</div>
+        <div class="sa-header-tag">SUPER ADMIN</div>
+      </div>
+    </div>
+    <div class="sa-header-right">
+      <div class="sa-user-pill">
+        <div class="sa-user-avatar">D</div>
+        <span id="sa-dev-name">Dev</span>
+      </div>
+      <button class="sa-btn-icon" onclick="refreshAll()" title="Refresh">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      </button>
+      <button class="sa-btn-icon" onclick="handleSALogout()" title="Logout" style="color:var(--danger);border-color:rgba(239,68,68,.3)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="sa-main">
+    <div class="sa-section-title">📊 System Overview</div>
+    <div class="sa-stats-grid" id="sa-stats-grid"></div>
+
+    <div class="sa-section-title">💰 Subscription Pricing Management</div>
+    <div class="sa-pricing-card">
+      <div style="font-size:12px;color:var(--dim);margin-bottom:4px">
+        These prices will be displayed on the <b style="color:var(--gold)">SmartFix TM</b> landing page (index.html).
+      </div>
+      <div class="sa-pricing-grid">
+        <div class="sa-pricing-input-group">
+          <label>Trial Duration (Days)</label>
+          <input type="number" id="sa-price-trial" placeholder="30">
+        </div>
+        <div class="sa-pricing-input-group">
+          <label>6 Months Premium (₹)</label>
+          <input type="number" id="sa-price-6m" placeholder="2999">
+        </div>
+        <div class="sa-pricing-input-group">
+          <label>1 Year Premium (₹)</label>
+          <input type="number" id="sa-price-1y" placeholder="4999">
+        </div>
+      </div>
+      <button class="sa-btn-gold" style="margin-top:14px" onclick="savePricingSettings()">💾 Save Pricing Settings</button>
+    </div>
+
+    <div class="sa-section-title">🏪 Registered Cafes & Restaurants</div>
+    <div class="sa-search-bar">
+      <input type="text" class="sa-search-input" id="sa-search" placeholder="🔍 Search by name, phone, owner, or email..." oninput="renderCafeList()">
+      <button class="sa-filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="sa-filter-btn" data-filter="trial" onclick="setFilter('trial')">Trial</button>
+      <button class="sa-filter-btn" data-filter="premium" onclick="setFilter('premium')">Premium</button>
+      <button class="sa-filter-btn" data-filter="suspended" onclick="setFilter('suspended')">Suspended</button>
+    </div>
+    <div class="sa-cafe-list" id="sa-cafe-list"></div>
+
+    <div class="sa-dev-footer">
+      SmartFix TM · Enterprise Restaurant Management Suite<br>
+      Developed by <b>Debapriya Sarkar</b> · © 2025
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="sa-modal-backdrop" id="sa-modal-backdrop" onclick="if(event.target.id==='sa-modal-backdrop') closeSAModal()">
+  <div class="sa-modal">
+    <div class="sa-modal-head">
+      <div class="sa-modal-title" id="sa-modal-title">Action</div>
+      <button class="sa-modal-close" onclick="closeSAModal()">✕</button>
+    </div>
+    <div id="sa-modal-body"></div>
+  </div>
+</div>
+
+<div class="sa-toast" id="sa-toast"></div>
+
+<script>
+const SUPER_ADMIN_EMAIL = "debapriyasarakara@gmail.com";
+let allCafes = [];
+let currentFilter = 'all';
+
+// ===== LOGIN =====
+async function handleSALogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('sa-email').value.trim().toLowerCase();
+  const pass = document.getElementById('sa-pass').value;
+  const btn = document.getElementById('sa-login-btn');
+
+  if (email !== SUPER_ADMIN_EMAIL) {
+    showToast("⛔ Unauthorized email address. This is a developer-only panel.", "error");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerText = "🔐 Authenticating...";
+
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+    // onAuthStateChanged will handle UI transition
+  } catch (err) {
+    showToast("Login failed: " + err.message, "error");
+    btn.disabled = false;
+    btn.innerText = "🔓 Access Control Center →";
+  }
+}
+
+async function handleSALogout() {
+  if (!confirm("Logout from Super Admin panel?")) return;
+  await auth.signOut();
+  location.reload();
+}
+
+// ===== INIT =====
+window.addEventListener('DOMContentLoaded', () => {
+  if (!initFirebase()) { alert("Firebase failed!"); return; }
+
+  auth.onAuthStateChanged(async (user) => {
+    if (user && user.email && user.email.toLowerCase() === SUPER_ADMIN_EMAIL) {
+      document.getElementById('sa-login-screen').style.display = 'none';
+      document.getElementById('sa-dashboard').style.display = 'block';
+      document.getElementById('sa-dev-name').innerText = user.email.split('@')[0].slice(0, 8);
+      await refreshAll();
+    } else {
+      document.getElementById('sa-login-screen').style.display = 'flex';
+      document.getElementById('sa-dashboard').style.display = 'none';
+    }
+  });
+});
+
+async function refreshAll() {
+  showToast("🔄 Loading data...", "info");
+  try {
+    const settingsDoc = await db.collection("systemSettings").doc("pricing").get();
+    if (settingsDoc.exists) {
+      const s = settingsDoc.data();
+      document.getElementById('sa-price-trial').value = s.trialDays || 30;
+      document.getElementById('sa-price-6m').value = s.sixMonthPrice || 2999;
+      document.getElementById('sa-price-1y').value = s.oneYearPrice || 4999;
+    } else {
+      document.getElementById('sa-price-trial').value = 30;
+      document.getElementById('sa-price-6m').value = 2999;
+      document.getElementById('sa-price-1y').value = 4999;
+    }
+
+    const snap = await db.collection("cafes").get();
+    allCafes = snap.docs.map(doc => ({ _docId: doc.id, ...doc.data() }));
+
+    renderStats();
+    renderCafeList();
+    showToast(`✅ Loaded ${allCafes.length} cafes`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast("❌ Failed: " + err.message, "error");
+  }
+}
+
+// ===== PLAN STATUS =====
+function getCafePlanStatus(cafe) {
+  if (cafe.subscriptionStatus === 'suspended') return 'suspended';
+  if (cafe.plan === 'premium' && cafe.premiumUntil && new Date(cafe.premiumUntil) > new Date()) return 'premium';
+  if (cafe.plan === 'trial' && cafe.trialEndsAt && new Date(cafe.trialEndsAt) > new Date()) return 'trial';
+  if (cafe.plan === 'premium' && cafe.premiumUntil) return 'expired';
+  if (cafe.plan === 'trial' && cafe.trialEndsAt) return 'expired';
+  return 'trial';
+}
+
+// ===== STATS =====
+function renderStats() {
+  const total = allCafes.length;
+  const trial = allCafes.filter(c => getCafePlanStatus(c) === 'trial').length;
+  const premium = allCafes.filter(c => getCafePlanStatus(c) === 'premium').length;
+  const suspended = allCafes.filter(c => getCafePlanStatus(c) === 'suspended').length;
+  const expired = allCafes.filter(c => getCafePlanStatus(c) === 'expired').length;
+  const totalOrders = allCafes.reduce((s, c) => s + ((c.orders || []).length), 0);
+  const totalRevenue = allCafes.reduce((s, c) => s + (c.orders || []).filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.total || 0), 0), 0);
+
+  document.getElementById('sa-stats-grid').innerHTML = `
+    <div class="sa-stat-card gold"><div class="sa-stat-label">Total Cafes</div><div class="sa-stat-value">${total}</div></div>
+    <div class="sa-stat-card active"><div class="sa-stat-label">Premium Active</div><div class="sa-stat-value">${premium}</div></div>
+    <div class="sa-stat-card"><div class="sa-stat-label">On Trial</div><div class="sa-stat-value" style="color:var(--gold)">${trial}</div></div>
+    <div class="sa-stat-card danger"><div class="sa-stat-label">Suspended</div><div class="sa-stat-value">${suspended}</div></div>
+    <div class="sa-stat-card warning"><div class="sa-stat-label">Expired</div><div class="sa-stat-value">${expired}</div></div>
+    <div class="sa-stat-card"><div class="sa-stat-label">Total Orders</div><div class="sa-stat-value">${totalOrders}</div></div>
+    <div class="sa-stat-card active"><div class="sa-stat-label">Total Revenue</div><div class="sa-stat-value" style="font-size:18px">₹${totalRevenue.toFixed(0)}</div></div>
+  `;
+}
+
+// ===== CAFE LIST =====
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.sa-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  renderCafeList();
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch(e) { return '—'; }
+}
+
+function getDaysLeft(iso) {
+  if (!iso) return null;
+  return Math.ceil((new Date(iso) - new Date()) / (1000 * 60 * 60 * 24));
+}
+
+function renderCafeList() {
+  const search = (document.getElementById('sa-search')?.value || '').toLowerCase();
+  const filtered = allCafes.filter(c => {
+    const status = getCafePlanStatus(c);
+    if (currentFilter !== 'all' && status !== currentFilter) return false;
+    if (!search) return true;
+    return (c.name || '').toLowerCase().includes(search) ||
+      (c.ownerName || '').toLowerCase().includes(search) ||
+      (c.phone || '').includes(search) ||
+      (c.email || '').toLowerCase().includes(search) ||
+      (c.cafeId || '').toLowerCase().includes(search);
+  });
+
+  const container = document.getElementById('sa-cafe-list');
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="sa-empty"><div class="sa-empty-icon">🏪</div><div style="font-weight:700;color:var(--dim)">No cafes match this filter</div><div style="font-size:11px;margin-top:4px">Try adjusting your search</div></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(c => {
+    const status = getCafePlanStatus(c);
+    const expiryDate = status === 'premium' ? c.premiumUntil : c.trialEndsAt;
+    const daysLeft = getDaysLeft(expiryDate);
+    const orderCount = (c.orders || []).length;
+    const revenue = (c.orders || []).filter(o => o.status === 'completed').reduce((s, o) => s + (o.total || 0), 0);
+    const menuCount = (c.menu || []).length;
+    const staffCount = (c.staff || []).length;
+    const isSuspended = status === 'suspended';
+    const statusText = { trial: 'TRIAL', premium: 'PREMIUM', expired: 'EXPIRED', suspended: 'SUSPENDED' }[status];
+
+    return `
+      <div class="sa-cafe-card ${isSuspended ? 'suspended' : ''}">
+        <div class="sa-cafe-header">
+          <div class="sa-cafe-info">
+            <div class="sa-cafe-name">
+              ${c.name || 'Unnamed Cafe'}
+              <span class="sa-status-badge ${status}">${statusText}</span>
+            </div>
+            <div class="sa-cafe-meta">👤 <b>${c.ownerName || 'Unknown'}</b> · 📞 <b>${c.phone || 'N/A'}</b>${c.email ? ` · ✉️ <b>${c.email}</b>` : ''}</div>
+            <div class="sa-cafe-meta">📅 ${status === 'premium' ? 'Premium until:' : 'Trial ends:'} <b>${formatDate(expiryDate)}</b>${daysLeft !== null && daysLeft > 0 ? ` · ⏳ <b>${daysLeft} days left</b>` : ''}</div>
+          </div>
+        </div>
+        <div class="sa-cafe-stats">
+          <div><div class="sa-cafe-stat-label">Orders</div><div class="sa-cafe-stat-value">${orderCount}</div></div>
+          <div><div class="sa-cafe-stat-label">Revenue</div><div class="sa-cafe-stat-value">₹${revenue.toFixed(0)}</div></div>
+          <div><div class="sa-cafe-stat-label">Menu</div><div class="sa-cafe-stat-value">${menuCount}</div></div>
+          <div><div class="sa-cafe-stat-label">Staff</div><div class="sa-cafe-stat-value">${staffCount}</div></div>
+        </div>
+        <div class="sa-cafe-actions">
+          <button class="sa-action-btn" onclick="viewCafeData('${c._docId}')">👁️ View Data</button>
+          <button class="sa-action-btn" onclick="openResetPasswordModal('${c._docId}')">🔑 Reset Password</button>
+          <button class="sa-action-btn" onclick="openExtendPlanModal('${c._docId}')">⭐ Extend Plan</button>
+          ${isSuspended
+            ? `<button class="sa-action-btn success" onclick="toggleSuspend('${c._docId}', false)">✓ Activate</button>`
+            : `<button class="sa-action-btn danger" onclick="toggleSuspend('${c._docId}', true)">⏸ Suspend</button>`}
+          <button class="sa-action-btn" onclick="backupCafe('${c._docId}')">💾 Backup</button>
+          <button class="sa-action-btn" onclick="openRestoreModal('${c._docId}')">📂 Restore</button>
+          <button class="sa-action-btn danger" onclick="resetCafeData('${c._docId}')">🔄 Reset Data</button>
+          <button class="sa-action-btn danger" onclick="deleteCafe('${c._docId}')">🗑️ Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== VIEW DATA =====
+function viewCafeData(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const orders = cafe.orders || [];
+  const expenses = cafe.expenses || [];
+  const revenue = orders.filter(o => o.status === 'completed').reduce((s, o) => s + (o.total || 0), 0);
+  const totalExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+
+  const html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:rgba(245,184,0,.06);border:1px solid rgba(245,184,0,.2);border-radius:10px;padding:10px">
+        <div style="font-size:9.5px;color:var(--muted);text-transform:uppercase;font-weight:700">Revenue</div>
+        <div style="font-size:18px;font-weight:900;color:var(--gold)">₹${revenue.toFixed(0)}</div>
+      </div>
+      <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:10px">
+        <div style="font-size:9.5px;color:var(--muted);text-transform:uppercase;font-weight:700">Expenses</div>
+        <div style="font-size:18px;font-weight:900;color:var(--danger)">₹${totalExpense.toFixed(0)}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:6px">Basic Info</div>
+      <div style="background:rgba(255,255,255,.02);border-radius:8px;padding:10px;font-size:12px;line-height:1.8">
+        <div><b style="color:var(--gold)">Cafe ID:</b> ${cafe.cafeId || '—'}</div>
+        <div><b style="color:var(--gold)">Owner UID:</b> ${cafe.ownerUid || '—'}</div>
+        <div><b style="color:var(--gold)">Name:</b> ${cafe.name || '—'}</div>
+        <div><b style="color:var(--gold)">Owner:</b> ${cafe.ownerName || '—'}</div>
+        <div><b style="color:var(--gold)">Phone:</b> ${cafe.phone || '—'}</div>
+        <div><b style="color:var(--gold)">Email:</b> ${cafe.email || '❌ Not stored'}</div>
+        <div><b style="color:var(--gold)">Address:</b> ${cafe.address || '—'}</div>
+        <div><b style="color:var(--gold)">GST Rate:</b> ${cafe.gstRate || 0}%</div>
+        <div><b style="color:var(--gold)">Master PIN:</b> ${cafe.masterPin || '—'}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:6px">Recent Orders</div>
+      <div style="max-height:200px;overflow-y:auto;background:rgba(255,255,255,.02);border-radius:8px;padding:8px;font-size:11.5px">
+        ${orders.length === 0 ? '<div style="text-align:center;padding:10px;color:var(--muted)">No orders yet</div>'
+          : orders.slice(-10).reverse().map(o => `
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+              <span>Bill #${o.billNo || '—'} · ${o.date || '—'}</span>
+              <b style="color:var(--gold)">₹${(o.total || 0).toFixed(0)}</b>
+              <span style="font-size:10px;color:${o.status === 'completed' ? 'var(--success)' : 'var(--warning)'}">${o.status || '—'}</span>
+            </div>`).join('')}
+      </div>
+    </div>
+    <button class="sa-btn-gold" onclick="backupCafe('${docId}')">💾 Download Full Backup</button>
+  `;
+  openSAModal(`🏪 ${cafe.name || 'Cafe Details'}`, html);
+}
+
+// ===== RESET PASSWORD =====
+function openResetPasswordModal(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const html = `
+    <div style="background:rgba(245,184,0,.08);border:1px solid rgba(245,184,0,.25);border-radius:10px;padding:12px;margin-bottom:14px;font-size:11.5px;color:var(--dim);line-height:1.6">
+      ℹ️ A secure password reset link will be emailed to the owner. They will use it to set a new password.
+    </div>
+    <label>Owner Email Address</label>
+    <input type="email" id="sa-reset-email" value="${cafe.email || ''}" placeholder="owner@cafe.com">
+    ${!cafe.email ? `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:#FFB0B0">⚠️ This cafe has no email stored. Enter the owner's email to save it for future resets.</div>` : ''}
+    <button class="sa-btn-gold" id="sa-reset-btn" onclick="sendPasswordReset('${docId}')">📧 Send Password Reset Email</button>
+  `;
+  openSAModal('🔑 Reset Owner Password', html);
+}
+
+async function sendPasswordReset(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const email = document.getElementById('sa-reset-email').value.trim();
+  if (!email) { showToast("Enter a valid email", "error"); return; }
+  const btn = document.getElementById('sa-reset-btn');
+  btn.disabled = true; btn.innerText = "📧 Sending...";
+  try {
+    if (cafe.email !== email) await db.collection("cafes").doc(docId).update({ email });
+    await auth.sendPasswordResetEmail(email);
+    showToast(`✅ Reset email sent to ${email}`, "success");
+    closeSAModal();
+    await refreshAll();
+  } catch (err) {
+    showToast("❌ Failed: " + err.message, "error");
+    btn.disabled = false; btn.innerText = "📧 Send Password Reset Email";
+  }
+}
+
+// ===== EXTEND PLAN =====
+function openExtendPlanModal(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const status = getCafePlanStatus(cafe);
+  const html = `
+    <div style="background:rgba(255,255,255,.02);border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">Current Status:</div>
+      <div style="font-size:15px;font-weight:900;color:var(--gold);text-transform:uppercase">${status}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">
+        ${status === 'premium' ? `Premium until: ${formatDate(cafe.premiumUntil)}` : status === 'trial' ? `Trial ends: ${formatDate(cafe.trialEndsAt)}` : 'Expired or suspended'}
+      </div>
+    </div>
+    <label>Select Plan</label>
+    <select id="sa-plan-type">
+      <option value="6month">6 Months Premium</option>
+      <option value="1year">1 Year Premium</option>
+      <option value="custom">Custom Duration</option>
+    </select>
+    <label>Starting From</label>
+    <input type="date" id="sa-plan-start" value="${new Date().toISOString().split('T')[0]}">
+    <div id="sa-custom-days-wrap" style="display:none">
+      <label>Custom Days</label>
+      <input type="number" id="sa-plan-custom-days" placeholder="365">
+    </div>
+    <button class="sa-btn-gold" id="sa-extend-btn" onclick="extendCafePlan('${docId}')">⭐ Activate Premium</button>
+  `;
+  openSAModal('⭐ Extend Subscription Plan', html);
+  document.getElementById('sa-plan-type').addEventListener('change', e => {
+    document.getElementById('sa-custom-days-wrap').style.display = e.target.value === 'custom' ? 'block' : 'none';
+  });
+}
+
+async function extendCafePlan(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const planType = document.getElementById('sa-plan-type').value;
+  const startDate = document.getElementById('sa-plan-start').value;
+  const btn = document.getElementById('sa-extend-btn');
+  if (!startDate) { showToast("Select a start date", "error"); return; }
+
+  let days = 0, planLabel = '';
+  if (planType === '6month') { days = 180; planLabel = '6 Months'; }
+  else if (planType === '1year') { days = 365; planLabel = '1 Year'; }
+  else {
+    days = parseInt(document.getElementById('sa-plan-custom-days').value);
+    planLabel = `${days} Days`;
+    if (!days || days < 1) { showToast("Enter valid days", "error"); return; }
+  }
+
+  btn.disabled = true; btn.innerText = "⏳ Activating...";
+  try {
+    const start = new Date(startDate);
+    const end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+    await db.collection("cafes").doc(docId).update({
+      plan: 'premium', premiumPlan: planType,
+      premiumStartedAt: start.toISOString(), premiumUntil: end.toISOString(),
+      subscriptionStatus: 'active'
+    });
+    showToast(`✅ ${cafe.name} activated (${planLabel})!`, "success");
+    closeSAModal();
+    await refreshAll();
+  } catch (err) {
+    showToast("❌ Failed: " + err.message, "error");
+    btn.disabled = false; btn.innerText = "⭐ Activate Premium";
+  }
+}
+
+// ===== SUSPEND =====
+async function toggleSuspend(docId, suspend) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const action = suspend ? 'SUSPEND' : 'ACTIVATE';
+  if (!confirm(`${action} "${cafe.name}"?\n\n${suspend ? 'Their access will be blocked immediately.' : 'Their access will be restored.'}`)) return;
+  try {
+    await db.collection("cafes").doc(docId).update({
+      subscriptionStatus: suspend ? 'suspended' : 'active',
+      suspendedAt: suspend ? new Date().toISOString() : null
+    });
+    showToast(`✅ Cafe ${suspend ? 'suspended' : 'activated'}`, "success");
+    await refreshAll();
+  } catch (err) { showToast("❌ " + err.message, "error"); }
+}
+
+// ===== BACKUP =====
+async function backupCafe(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  try {
+    const clean = { ...cafe }; delete clean._docId;
+    const backup = { app: "SmartFix TM", version: "2.0", developer: "Debapriya Sarkar (9046356631)", backupDate: new Date().toISOString(), cafeId: cafe.cafeId, data: clean };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `SmartFix_Backup_${(cafe.name || 'cafe').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    showToast("💾 Backup downloaded", "success");
+  } catch (err) { showToast("❌ " + err.message, "error"); }
+}
+
+// ===== RESTORE =====
+function openRestoreModal(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const html = `
+    <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:12px;margin-bottom:14px;font-size:11.5px;color:#FFB0B0;line-height:1.6">
+      ⚠️ Restoring will REPLACE all current data for this cafe. Cannot be undone.
+    </div>
+    <label>Select Backup JSON File</label>
+    <input type="file" id="sa-restore-file" accept=".json">
+    <button class="sa-btn-gold" id="sa-restore-btn" onclick="restoreCafeData('${docId}')">📂 Restore from Backup</button>
+  `;
+  openSAModal('📂 Restore Backup', html);
+}
+
+async function restoreCafeData(docId) {
+  const fileInput = document.getElementById('sa-restore-file');
+  const file = fileInput.files[0];
+  if (!file) { showToast("Select a backup file", "error"); return; }
+  const btn = document.getElementById('sa-restore-btn');
+  btn.disabled = true; btn.innerText = "⏳ Restoring...";
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+    if (!backup.data) throw new Error("Invalid backup format");
+    const currentCafe = allCafes.find(c => c._docId === docId);
+    const restoredData = { ...backup.data };
+    delete restoredData._docId;
+    await db.collection("cafes").doc(docId).set(restoredData, { merge: false });
+    showToast(`✅ "${currentCafe.name}" restored!`, "success");
+    closeSAModal();
+    await refreshAll();
+  } catch (err) {
+    showToast("❌ Restore failed: " + err.message, "error");
+    btn.disabled = false; btn.innerText = "📂 Restore from Backup";
+  }
+}
+
+// ===== RESET DATA =====
+async function resetCafeData(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const txt = prompt(`⚠️ This will CLEAR all orders, expenses, and payouts for "${cafe.name}".\n\nMenu, tables, staff, and settings will be preserved.\n\nType "RESET" to confirm:`);
+  if (txt !== 'RESET') { showToast("Cancelled", "info"); return; }
+  try {
+    await db.collection("cafes").doc(docId).update({ orders: [], expenses: [], platformPayouts: [] });
+    showToast(`✅ Data reset for "${cafe.name}"`, "success");
+    await refreshAll();
+  } catch (err) { showToast("❌ " + err.message, "error"); }
+}
+
+// ===== DELETE =====
+async function deleteCafe(docId) {
+  const cafe = allCafes.find(c => c._docId === docId);
+  if (!cafe) return;
+  const txt = prompt(`🚨 PERMANENTLY DELETE "${cafe.name}"?\n\nThis deletes ALL data. Cannot be undone.\n\nType the exact cafe name to confirm:`);
+  if (txt !== cafe.name) { showToast("Cancelled", "info"); return; }
+  try {
+    await db.collection("cafes").doc(docId).delete();
+    showToast(`✅ "${cafe.name}" deleted`, "success");
+    await refreshAll();
+  } catch (err) { showToast("❌ " + err.message, "error"); }
+}
+
+// ===== PRICING =====
+async function savePricingSettings() {
+  const trialDays = parseInt(document.getElementById('sa-price-trial').value) || 30;
+  const sixMonthPrice = parseFloat(document.getElementById('sa-price-6m').value) || 2999;
+  const oneYearPrice = parseFloat(document.getElementById('sa-price-1y').value) || 4999;
+  try {
+    await db.collection("systemSettings").doc("pricing").set({
+      trialDays, sixMonthPrice, oneYearPrice,
+      updatedAt: new Date().toISOString(),
+      updatedBy: SUPER_ADMIN_EMAIL
+    }, { merge: true });
+    showToast("✅ Pricing saved", "success");
+  } catch (err) { showToast("❌ " + err.message, "error"); }
+}
+
+// ===== MODAL & TOAST =====
+function openSAModal(title, html) {
+  document.getElementById('sa-modal-title').innerText = title;
+  document.getElementById('sa-modal-body').innerHTML = html;
+  document.getElementById('sa-modal-backdrop').classList.add('active');
+}
+function closeSAModal() { document.getElementById('sa-modal-backdrop').classList.remove('active'); }
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('sa-toast');
+  t.innerText = msg; t.className = 'sa-toast show ' + type;
+  clearTimeout(window._saToastTimer);
+  window._saToastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>
